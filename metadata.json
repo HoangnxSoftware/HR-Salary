@@ -1,0 +1,7 @@
+{
+  "name": "Phần mềm Tính Lương & Quản lý Tiền Công",
+  "description": "Hệ thống quản lý chấm công, tính tiền lương, tiền công, BHXH, thuế TNCN kết nối Google Sheets & Google Drive chuyên nghiệp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
