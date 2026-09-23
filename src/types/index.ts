@@ -371,12 +371,42 @@ export type PaymentStatus = 'draft' | 'approved' | 'paid';
 
 export type UserRole = 'admin' | 'accountant' | 'payroll' | 'employee';
 
+export interface RolePermissions {
+  canViewDashboard: boolean;
+  canViewEmployees: boolean;
+  canEditEmployees: boolean;
+  canViewTimekeeping: boolean;
+  canEditTimekeeping: boolean;
+  canViewInsurance: boolean;
+  canEditInsurance: boolean;
+  canViewDependents: boolean;
+  canEditDependents: boolean;
+  canViewMeal: boolean;
+  canEditMeal: boolean;
+  canViewAllowances: boolean;
+  canEditAllowances: boolean;
+  canViewPayroll: boolean;
+  canEditPayroll: boolean;
+  canApprovePayroll: boolean;
+  canViewTaxReport: boolean;
+  canExportData: boolean;
+  canSyncGoogleSheets: boolean;
+  canEditSettings: boolean;
+  canManageUsers: boolean;
+}
+
 export interface AppUser {
   id: string;
-  name: string;
+  username: string; // Tên đăng nhập
+  password?: string; // Mật khẩu
+  name: string; // Tên hiển thị
   email: string;
   role: UserRole;
   employeeId?: string; // Nếu là employee thì gán với 1 NV cụ thể
+  status?: 'active' | 'locked';
+  avatar?: string;
+  lastLogin?: string;
+  customPermissions?: Partial<RolePermissions>; // Tùy biến quyền riêng nếu có
 }
 
 export interface GoogleSyncState {

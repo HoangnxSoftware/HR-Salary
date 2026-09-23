@@ -6,7 +6,8 @@ import {
   MealRegistration, 
   SpecialAllowance, 
   TimekeepingRecord,
-  WorkShift
+  WorkShift,
+  AppUser
 } from '../types';
 import { DEFAULT_TAX_BRACKETS, DEFAULT_TAX_EXEMPTION_RULES } from '../utils/payrollCalculator';
 
@@ -621,6 +622,61 @@ export const generateDefaultTimekeeping = (employeeList: Employee[], month: stri
   });
 };
 
+export const initialUsers: AppUser[] = [
+  {
+    id: 'user-admin',
+    username: 'admin',
+    password: '123',
+    name: 'Nguyễn Văn Thành (Admin)',
+    email: 'admin@vietthanh.com.vn',
+    role: 'admin',
+    status: 'active',
+    lastLogin: '2026-09-23 08:30'
+  },
+  {
+    id: 'user-accountant',
+    username: 'ketoantruong',
+    password: '123',
+    name: 'Trần Thị Thu Hương (Kế toán trưởng)',
+    email: 'ketoantruong@vietthanh.com.vn',
+    role: 'accountant',
+    status: 'active',
+    lastLogin: '2026-09-22 17:15'
+  },
+  {
+    id: 'user-payroll',
+    username: 'ketoanluong',
+    password: '123',
+    name: 'Phạm Hồng Phúc (Kế toán tiền lương)',
+    email: 'ketoanluong@vietthanh.com.vn',
+    role: 'payroll',
+    status: 'active',
+    lastLogin: '2026-09-23 07:45'
+  },
+  {
+    id: 'user-employee-1',
+    username: 'nhanvien',
+    password: '123',
+    name: 'Phạm Hoàng Long (Kỹ sư Phần mềm)',
+    email: 'long.ph@vietthanh.com.vn',
+    role: 'employee',
+    employeeId: 'emp-004',
+    status: 'active',
+    lastLogin: '2026-09-21 18:20'
+  },
+  {
+    id: 'user-employee-2',
+    username: 'nhanvien2',
+    password: '123',
+    name: 'Đỗ Thị Mỹ Linh (Chuyên viên Kinh doanh)',
+    email: 'linh.dtm@vietthanh.com.vn',
+    role: 'employee',
+    employeeId: 'emp-005',
+    status: 'active',
+    lastLogin: '2026-09-20 09:10'
+  }
+];
+
 export const INITIAL_SETTINGS = initialSettings;
 export const INITIAL_EMPLOYEES = initialEmployees;
 export const INITIAL_DEPENDENTS = initialDependents;
@@ -628,4 +684,5 @@ export const INITIAL_INSURANCES = initialInsurances;
 export const INITIAL_MEAL_REGISTRATIONS = initialMealRegistrations;
 export const INITIAL_SPECIAL_ALLOWANCES = initialSpecialAllowances;
 export const INITIAL_TIMEKEEPINGS = generateDefaultTimekeeping(initialEmployees, '2026-09');
+export const INITIAL_USERS = initialUsers;
 

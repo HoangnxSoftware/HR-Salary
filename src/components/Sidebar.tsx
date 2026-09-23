@@ -11,7 +11,8 @@ import {
   FileSpreadsheet, 
   Receipt, 
   Cloud,
-  X
+  X,
+  UserCog
 } from 'lucide-react';
 import { useAuthRole } from '../context/AuthRoleContext';
 
@@ -30,20 +31,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onOpenSyncModal
 }) => {
-  const { currentUserRole, roleLabel } = useAuthRole();
+  const { 
+    currentUserRole, 
+    roleLabel, 
+    canManageUsers,
+    canViewPayroll,
+    canViewTimekeeping,
+    canViewEmployees,
+    canViewInsurance,
+    canViewDependents,
+    canViewMeal,
+    canViewAllowances,
+    canViewTaxReport,
+    canEditSettings
+  } = useAuthRole();
 
-  const navItems = [
-    { id: 'dashboard', label: 'Tổng Quan Bảng Lương', icon: LayoutDashboard },
-    { id: 'payroll', label: 'Bảng Thanh Toán Lương', icon: FileSpreadsheet },
-    { id: 'timekeeping', label: 'Bảng Chấm Công & OT', icon: CalendarCheck },
-    { id: 'employees', label: 'Danh Sách Người Lao Động', icon: Users },
-    { id: 'insurance', label: 'Bảo Hiểm Xã Hội (BHXH)', icon: ShieldCheck },
-    { id: 'dependents', label: 'Người Phụ Thuộc (Thuế)', icon: UserCheck },
-    { id: 'meal', label: 'Đăng Ký Ăn Ca / Trưa', icon: Utensils },
-    { id: 'allowances', label: 'Phụ Cấp Đặc Thù', icon: Gift },
-    { id: 'tax', label: 'Báo Cáo Thuế TNCN', icon: Receipt },
-    { id: 'settings', label: 'Cài Đặt Hệ Thống', icon: Settings },
-  ];
+  // Danh mục điều hướng động theo vai trò (RBAC Navigation)
+  let navItems: { id: string; label: string; icon: any }[] = [];
+
+  if (currentUserRole === 'employee') {
+    navItems = [
+      { id: 'my_payslip', label: 'Phiếu Lương Của Tôi', icon: FileSpreadsheet },
+      { id: 'timekeeping', label: 'Bảng Công Cá Nhân', icon: CalendarCheck },
+    ];
+  } else {
+    navItems = [
+      { id: 'dashboard', label: 'Tổng Quan Bảng Lương', icon: LayoutDashboard },
+      canViewPayroll ? { id: 'payroll', label: 'Bảng Thanh Toán Lương', icon: FileSpreadsheet } : null,
+      canViewTimekeeping ? { id: 'timekeeping', label: 'Bảng Chấm Công & OT', icon: CalendarCheck } : null,
+      canViewEmployees ? { id: 'employees', label: 'Danh Sách Người Lao Động', icon: Users } : null,
+      canViewInsurance ? { id: 'insurance', label: 'Bảo Hiểm Xã Hội (BHXH)', icon: ShieldCheck } : null,
+      canViewDependents ? { id: 'dependents', label: 'Người Phụ Thuộc (Thuế)', icon: UserCheck } : null,
+      canViewMeal ? { id: 'meal', label: 'Đăng Ký Ăn Ca / Trưa', icon: Utensils } : null,
+      canViewAllowances ? { id: 'allowances', label: 'Phụ Cấp Đặc Thù', icon: Gift } : null,
+      canViewTaxReport ? { id: 'tax', label: 'Báo Cáo Thuế TNCN', icon: Receipt } : null,
+      canManageUsers ? { id: 'users', label: 'Phân Quyền & Người Dùng', icon: UserCog } : null,
+      canEditSettings ? { id: 'settings', label: 'Cài Đặt Hệ Thống', icon: Settings } : null,
+    ].filter(Boolean) as { id: string; label: string; icon: any }[];
+  }
 
   const handleItemClick = (id: string) => {
     onSelectTab(id);
@@ -113,19 +138,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer: Google Sheets Sync Button */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-          <button
-            onClick={() => {
-              onOpenSyncModal();
-              onCloseMobile();
-            }}
-            className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-          >
-            <Cloud className="w-4 h-4 text-emerald-400" />
-            <span>Google Drive / Sheets</span>
-          </button>
-        </div>
+        {currentUserRole !== 'employee' && (
+          <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+            <button
+              onClick={() => {
+                onOpenSyncModal();
+                onCloseMobile();
+              }}
+              className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            >
+              <Cloud className="w-4 h-4 text-emerald-400" />
+              <span>Google Drive / Sheets</span>
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
 };
+

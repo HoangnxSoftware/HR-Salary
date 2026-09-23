@@ -42,10 +42,24 @@ import { AllowancesView } from './views/AllowancesView';
 import { TimekeepingView } from './views/TimekeepingView';
 import { PayrollView } from './views/PayrollView';
 import { TaxReportView } from './views/TaxReportView';
+import { UserManagementView } from './views/UserManagementView';
+import { MyPayslipView } from './views/MyPayslipView';
+import { LoginModal } from './components/LoginModal';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 
 function PayrollAppContent() {
+  const { currentUser, isAuthenticated, currentUserRole } = useAuthRole();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  // Auto redirect employee to my_payslip
+  useEffect(() => {
+    if (currentUserRole === 'employee' && activeTab !== 'my_payslip' && activeTab !== 'timekeeping') {
+      setActiveTab('my_payslip');
+    }
+  }, [currentUserRole, activeTab]);
 
   // Core Data States
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
@@ -313,6 +327,9 @@ function PayrollAppContent() {
           onToggleSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
           employees={employees}
           onMonthChange={handleMonthChange}
+          onOpenUserManagement={() => setActiveTab('users')}
+          onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+          onOpenLoginModal={() => setIsLoginModalOpen(true)}
         />
 
         <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
@@ -329,6 +346,20 @@ function PayrollAppContent() {
               onPrintPayroll={() => setIsPrintPayrollOpen(true)}
               onPrintAllSlips={() => handleOpenPrintSlip()}
             />
+          )}
+
+          {activeTab === 'my_payslip' && (
+            <MyPayslipView
+              employees={employees}
+              payrolls={payrolls}
+              timekeepings={timekeepings}
+              settings={settings}
+              onPrintSlip={handleOpenPrintSlip}
+            />
+          )}
+
+          {activeTab === 'users' && (
+            <UserManagementView employees={employees} />
           )}
 
           {activeTab === 'payroll' && (
@@ -463,6 +494,18 @@ function PayrollAppContent() {
         departments={settings.departments}
         positions={settings.positions}
         employeeToEdit={employeeToEdit}
+      />
+
+      {/* Login & Security Modals */}
+      <LoginModal
+        isOpen={!isAuthenticated || isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        settings={settings}
+      />
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
       />
     </div>
   );
