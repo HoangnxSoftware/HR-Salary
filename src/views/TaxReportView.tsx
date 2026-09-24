@@ -578,8 +578,8 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
               <div className="bg-white p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
                 <div className="text-[10px] uppercase font-bold text-slate-500">1. Làm thêm giờ (Tăng ca)</div>
                 <div className="font-bold text-slate-800 mt-0.5 text-[11px]">
-                  {activeExemptionRules.otExemptMode === 'differential_only' && 'Chỉ miễn phần vượt mức (TT 111/2013)'}
-                  {activeExemptionRules.otExemptMode === 'fully_exempt' && 'Miễn 100% toàn bộ tiền OT'}
+                  {activeExemptionRules.otExemptMode === 'differential_only' && `Miễn phần vượt mức (Trần ${activeExemptionRules.otMonthlyHoursCap ?? 40}h/tháng, ${activeExemptionRules.otYearlyHoursCap ?? 200}h/năm)`}
+                  {activeExemptionRules.otExemptMode === 'fully_exempt' && 'Miễn 100% trong hạn mức'}
                   {activeExemptionRules.otExemptMode === 'fully_taxable' && 'Tính thuế 100% tiền OT'}
                   {activeExemptionRules.otExemptMode === 'custom_rate' && `Miễn ${activeExemptionRules.otCustomExemptRate}% tổng tiền OT`}
                 </div>
@@ -588,7 +588,7 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
               <div className="bg-white p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
                 <div className="text-[10px] uppercase font-bold text-slate-500">2. Ăn ca tiền mặt</div>
                 <div className="font-bold text-slate-800 mt-0.5 text-[11px]">
-                  {activeExemptionRules.mealExemptMode === 'capped' && `Trần: ${formatVND(activeExemptionRules.mealExemptMonthlyCap)}/tháng`}
+                  {activeExemptionRules.mealExemptMode === 'capped' && `Trần: ${formatVND(activeExemptionRules.mealExemptMonthlyCap || 1200000)}/tháng`}
                   {activeExemptionRules.mealExemptMode === 'fully_exempt' && 'Miễn 100% tiền mặt'}
                   {activeExemptionRules.mealExemptMode === 'fully_taxable' && 'Tính thuế 100% tiền mặt'}
                 </div>

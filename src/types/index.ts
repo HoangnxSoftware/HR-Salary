@@ -57,8 +57,8 @@ export interface SystemSettings {
   otNightBonusRate: number; // 30% (0.3)
   
   // Thuế TNCN & Giảm trừ gia cảnh (VNĐ)
-  personalDeduction: number; // 11,000,000
-  dependentDeduction: number; // 4,400,000 / người
+  personalDeduction: number; // 15,500,000 đ
+  dependentDeduction: number; // 6,200,000 đ / người
   
   // Tỷ lệ trích BHXH Người lao động (%)
   socialInsRateEmployee: number; // 8%
@@ -75,7 +75,7 @@ export interface SystemSettings {
   
   // Định mức tiền ăn ca/ăn trưa
   standardMealPerDay: number; // ví dụ 35,000 VND / ngày hoặc bữa
-  monthlyMealFlatRate: number; // ví dụ 730,000 VND / tháng (mức tối đa miễn thuế TNCN)
+  monthlyMealFlatRate: number; // ví dụ 1,200,000 VND / tháng (mức tối đa miễn thuế TNCN)
   
   // Danh mục phòng ban, chức vụ, ngày nghỉ
   departments: Department[];
@@ -99,9 +99,14 @@ export interface TaxExemptionRules {
   otExemptMode: 'differential_only' | 'fully_exempt' | 'fully_taxable' | 'custom_rate';
   otCustomExemptRate?: number; // Tỷ lệ % miễn thuế nếu chọn custom_rate (ví dụ 50%)
 
+  // Quy định khống chế trần làm thêm giờ theo Bộ luật Lao động & Thuế TNCN
+  otMonthlyHoursCap?: number; // Mức trần giờ làm thêm/tháng được miễn thuế (mặc định: 40 giờ/tháng)
+  otYearlyHoursCap?: number; // Mức trần giờ làm thêm tích lũy/năm được miễn thuế (mặc định: 200 giờ/năm)
+  otCapExceededTaxable?: boolean; // Tự động tính thuế 100% phần làm thêm vượt 40 giờ/tháng và 200 giờ/năm (mặc định: true)
+
   // 2. Mức ăn ca chi trả bằng tiền mặt
   mealExemptMode: 'capped' | 'fully_exempt' | 'fully_taxable';
-  mealExemptMonthlyCap: number; // Mức trần miễn thuế (VNĐ/tháng, mặc định: 730,000 đ)
+  mealExemptMonthlyCap: number; // Mức trần miễn thuế (VNĐ/tháng, mặc định chuyển thành: 1,200,000 đ)
 
   // 3. Phụ cấp trang phục chi trả bằng tiền
   uniformExemptMode: 'capped' | 'fully_exempt' | 'fully_taxable';
@@ -329,8 +334,12 @@ export interface PayrollRecord {
   
   // 2. Thu nhập theo công và làm thêm
   mainSalary: number; // Lương chính = (Lương cơ bản / ngày chuẩn) * ngày công thực tế (hoặc theo %)
-  otPayTaxable: number; // Tiền OT phần tính thuế (100% lương theo giờ)
-  otPayTaxExempt: number; // Tiền OT phần MIỄN THUẾ (phần dôi thêm 50%, 100%, 200%)
+  otPayTaxable: number; // Tiền OT phần tính thuế (100% lương theo giờ + phần vượt trần 40h/tháng, 200h/năm)
+  otPayTaxExempt: number; // Tiền OT phần MIỄN THUẾ (phần dôi thêm trong hạn mức 40h/tháng, 200h/năm)
+  otHoursTotal?: number; // Tổng số giờ làm thêm trong tháng
+  otHoursEligible?: number; // Số giờ làm thêm trong hạn mức được xét miễn thuế (tối đa 40h/tháng & 200h/năm)
+  otHoursExcess?: number; // Số giờ làm thêm vượt hạn mức bị tính thuế TNCN 100%
+  priorYearOtHours?: number; // Số giờ làm thêm lũy kế trước tháng hiện tại trong năm
   
   // 3. Phụ cấp
   taxableAllowances: number; // Tổng phụ cấp CHỊU thuế TNCN (trách nhiệm, chuyên cần, kiêm nhiệm...)

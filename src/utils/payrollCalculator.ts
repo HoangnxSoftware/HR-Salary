@@ -110,48 +110,90 @@ export const getStandardWorkDaysForMonth = (
 };
 
 /**
- * Biểu thuế lũy tiến từng phần 7 bậc chuẩn theo luật thuế TNCN Việt Nam (Thông tư 111/2013/TT-BTC)
+ * Biểu thuế TNCN lũy tiến từng phần 5 bậc theo quy định cải cách hiện hành
  */
 export const DEFAULT_TAX_BRACKETS: TaxBracket[] = [
-  { bracket: 1, name: 'Bậc 1', min: 0, max: 5000000, rate: 0.05, description: 'Đến 5 triệu đ' },
-  { bracket: 2, name: 'Bậc 2', min: 5000000, max: 10000000, rate: 0.10, description: 'Trên 5 đến 10 triệu đ' },
-  { bracket: 3, name: 'Bậc 3', min: 10000000, max: 18000000, rate: 0.15, description: 'Trên 10 đến 18 triệu đ' },
-  { bracket: 4, name: 'Bậc 4', min: 18000000, max: 32000000, rate: 0.20, description: 'Trên 18 đến 32 triệu đ' },
-  { bracket: 5, name: 'Bậc 5', min: 32000000, max: 52000000, rate: 0.25, description: 'Trên 32 đến 52 triệu đ' },
-  { bracket: 6, name: 'Bậc 6', min: 52000000, max: 80000000, rate: 0.30, description: 'Trên 52 đến 80 triệu đ' },
-  { bracket: 7, name: 'Bậc 7', min: 80000000, max: null, rate: 0.35, description: 'Trên 80 triệu đ' },
+  { bracket: 1, name: 'Bậc 1', min: 0, max: 10000000, rate: 0.05, description: 'Đến 10 triệu đ (5%)' },
+  { bracket: 2, name: 'Bậc 2', min: 10000000, max: 30000000, rate: 0.10, description: 'Trên 10 đến 30 triệu đ (10%)' },
+  { bracket: 3, name: 'Bậc 3', min: 30000000, max: 60000000, rate: 0.20, description: 'Trên 30 đến 60 triệu đ (20%)' },
+  { bracket: 4, name: 'Bậc 4', min: 60000000, max: 100000000, rate: 0.30, description: 'Trên 60 đến 100 triệu đ (30%)' },
+  { bracket: 5, name: 'Bậc 5', min: 100000000, max: null, rate: 0.35, description: 'Trên 100 triệu đ (35%)' },
 ];
 
+export const PROPOSED_5_TAX_BRACKETS: TaxBracket[] = DEFAULT_TAX_BRACKETS;
+
 /**
- * Dự thảo biểu thuế TNCN 5 bậc rút gọn (Đề xuất sửa đổi Luật thuế TNCN)
+ * Biểu thuế TNCN 7 bậc cũ (theo Thông tư 111/2013/TT-BTC) để người dùng có thể đối chiếu hoặc tùy chọn
  */
-export const PROPOSED_5_TAX_BRACKETS: TaxBracket[] = [
-  { bracket: 1, name: 'Bậc 1', min: 0, max: 10000000, rate: 0.05, description: 'Đến 10 triệu đ' },
-  { bracket: 2, name: 'Bậc 2', min: 10000000, max: 30000000, rate: 0.10, description: 'Trên 10 đến 30 triệu đ' },
-  { bracket: 3, name: 'Bậc 3', min: 30000000, max: 60000000, rate: 0.20, description: 'Trên 30 đến 60 triệu đ' },
-  { bracket: 4, name: 'Bậc 4', min: 60000000, max: 100000000, rate: 0.30, description: 'Trên 60 đến 100 triệu đ' },
-  { bracket: 5, name: 'Bậc 5', min: 100000000, max: null, rate: 0.35, description: 'Trên 100 triệu đ' },
+export const TRADITIONAL_7_TAX_BRACKETS: TaxBracket[] = [
+  { bracket: 1, name: 'Bậc 1', min: 0, max: 5000000, rate: 0.05, description: 'Đến 5 triệu đ (5%)' },
+  { bracket: 2, name: 'Bậc 2', min: 5000000, max: 10000000, rate: 0.10, description: 'Trên 5 đến 10 triệu đ (10%)' },
+  { bracket: 3, name: 'Bậc 3', min: 10000000, max: 18000000, rate: 0.15, description: 'Trên 10 đến 18 triệu đ (15%)' },
+  { bracket: 4, name: 'Bậc 4', min: 18000000, max: 32000000, rate: 0.20, description: 'Trên 18 đến 32 triệu đ (20%)' },
+  { bracket: 5, name: 'Bậc 5', min: 32000000, max: 52000000, rate: 0.25, description: 'Trên 32 đến 52 triệu đ (25%)' },
+  { bracket: 6, name: 'Bậc 6', min: 52000000, max: 80000000, rate: 0.30, description: 'Trên 52 đến 80 triệu đ (30%)' },
+  { bracket: 7, name: 'Bậc 7', min: 80000000, max: null, rate: 0.35, description: 'Trên 80 triệu đ (35%)' },
 ];
 
 export const TAX_BRACKETS = DEFAULT_TAX_BRACKETS;
 
 /**
- * Thiết lập mặc định về các khoản thu nhập miễn thuế TNCN theo quy định hiện hành
- * - Thông tư 111/2013/TT-BTC: OT chỉ miễn phần chênh lệch cao hơn đơn giá chuẩn; Trang phục chi bằng tiền tối đa 5,000,000 đ/năm.
- * - Thông tư 26/2016/TT-BLĐTBXH: Tiền ăn ca chi bằng tiền mặt tối đa không quá 730,000 đ/tháng.
+ * Thiết lập mặc định về các chế độ lương & thu nhập miễn thuế TNCN theo quy định hiện hành
+ * - Biểu thuế 5 bậc, Giảm trừ bản thân 15.500.000 đ, Người phụ thuộc 6.200.000 đ
+ * - Mức ăn ca chuyển từ 720.000/730.000 đ thành 1.200.000 đ/tháng
+ * - Thu nhập tăng ca bị tính thuế TNCN: phần vượt 40 giờ/tháng và 200 giờ/năm
  */
 export const DEFAULT_TAX_EXEMPTION_RULES: TaxExemptionRules = {
-  otExemptMode: 'differential_only', // Chỉ miễn phần chênh lệch cao hơn đơn giá ngày thường
+  otExemptMode: 'differential_only', // Chỉ miễn phần chênh lệch cao hơn đơn giá ngày thường cho số giờ trong trần
   otCustomExemptRate: 50,
+  otMonthlyHoursCap: 40, // Trần làm thêm 40 giờ/tháng theo Bộ luật Lao động 2019
+  otYearlyHoursCap: 200, // Trần làm thêm 200 giờ/năm theo Bộ luật Lao động 2019
+  otCapExceededTaxable: true, // Thu nhập tăng ca bị tính thuế TNCN: phần vượt 40 giờ/tháng và 200 giờ/năm
   mealExemptMode: 'capped', // Có mức trần tiền mặt
-  mealExemptMonthlyCap: 730000, // 730,000 đ/tháng
+  mealExemptMonthlyCap: 1200000, // Chuyển từ 720.000/730.000 thành 1.200.000 đ/tháng
   uniformExemptMode: 'capped', // Tối đa 5,000,000 đ/năm (~ 416,667 đ/tháng)
   uniformExemptMonthlyCap: 416667,
   phoneExemptMode: 'company_policy', // Miễn thuế theo quy chế khoán chi công ty
   phoneExemptMonthlyCap: 500000,
   travelExemptMode: 'company_policy', // Miễn thuế theo quy chế công tác phí
   travelExemptMonthlyCap: 1000000,
-  legalNote: 'Căn cứ Luật Thuế TNCN, Thông tư 111/2013/TT-BTC và Thông tư 26/2016/TT-BLĐTBXH'
+  legalNote: 'Căn cứ Luật Thuế TNCN (Biểu thuế 5 bậc, giảm trừ 15.5tr/6.2tr), TT 111/2013/TT-BTC, BLLĐ 2019 (Trần OT 40h/tháng, 200h/năm) và mức ăn ca tối đa 1.200.000 đ/tháng'
+};
+
+/**
+ * Lấy tổng số giờ làm thêm lũy kế của nhân viên từ các tháng trước trong cùng năm
+ */
+export const getPriorYearOtHours = (
+  employeeId: string,
+  year: number,
+  month: number,
+  allTimekeepings?: TimekeepingRecord[]
+): number => {
+  if (!allTimekeepings || allTimekeepings.length === 0) return 0;
+  let totalPriorHours = 0;
+
+  allTimekeepings.forEach(tk => {
+    if (tk.employeeId !== employeeId) return;
+
+    let tkYear = tk.year;
+    let tkMonth: number | undefined;
+    if (tk.month) {
+      const parts = String(tk.month).split('-');
+      if (parts.length >= 2) {
+        tkYear = parseInt(parts[0], 10);
+        tkMonth = parseInt(parts[1], 10);
+      }
+    }
+
+    if (tkYear === year && tkMonth !== undefined && tkMonth < month) {
+      const hNormal = tk.totalOtNormalHours || 0;
+      const hWeekend = tk.totalOtWeekendHours || 0;
+      const hHoliday = tk.totalOtHolidayHours || 0;
+      totalPriorHours += (hNormal + hWeekend + hHoliday);
+    }
+  });
+
+  return totalPriorHours;
 };
 
 /**
@@ -293,9 +335,10 @@ export const calculateEmployeePayroll = (
   arg6?: any,
   arg7?: any,
   arg8?: any,
-  arg9?: any
+  arg9?: any,
+  arg10?: any
 ): PayrollRecord => {
-  // Support both (employee, settings, timekeeping, ...) and (employee, timekeeping, insurance, meal, allowances, dependents, settings)
+  // Support both (employee, settings, timekeeping, ...) and (employee, timekeeping, insurance, meal, allowances, dependents, settings, advanceAmount, otherDeductionAmount, allTimekeepings)
   let settings: SystemSettings;
   let timekeeping: TimekeepingRecord | undefined;
   let dependents: Dependent[] = [];
@@ -304,9 +347,10 @@ export const calculateEmployeePayroll = (
   let allowances: SpecialAllowance[] = [];
   let advanceAmount = 0;
   let otherDeductionAmount = 0;
+  let allTimekeepings: TimekeepingRecord[] | undefined;
 
   if (arg2 && arg2.companyName) {
-    // Call style: (employee, settings, timekeeping, dependents, insurance, mealReg, allowances, advanceAmount, otherDeductionAmount)
+    // Call style: (employee, settings, timekeeping, dependents, insurance, mealReg, allowances, advanceAmount, otherDeductionAmount, allTimekeepings)
     settings = arg2;
     timekeeping = arg3;
     dependents = arg4 || [];
@@ -315,20 +359,24 @@ export const calculateEmployeePayroll = (
     allowances = arg7 || [];
     advanceAmount = arg8 || 0;
     otherDeductionAmount = arg9 || 0;
+    allTimekeepings = arg10;
   } else {
-    // Call style: (employee, timekeeping, insurance, mealReg, allowances, dependents, settings)
+    // Call style: (employee, timekeeping, insurance, mealReg, allowances, dependents, settings, advanceAmount, otherDeductionAmount, allTimekeepings)
     timekeeping = arg2;
     insurance = arg3;
     mealReg = arg4;
     allowances = arg5 || [];
     dependents = arg6 || [];
     settings = arg7;
+    advanceAmount = arg8 || 0;
+    otherDeductionAmount = arg9 || 0;
+    allTimekeepings = arg10;
   }
 
   const parsedMonth = typeof timekeeping?.month === 'number' 
     ? timekeeping.month 
-    : (timekeeping?.month ? parseInt(String(timekeeping.month).split('-')[1] || '9', 10) : settings?.currentMonth);
-  const parsedYear = timekeeping?.year || (timekeeping?.month ? parseInt(String(timekeeping.month).split('-')[0] || '2026', 10) : settings?.currentYear);
+    : (timekeeping?.month ? parseInt(String(timekeeping.month).split('-')[1] || '9', 10) : settings?.currentMonth || 9);
+  const parsedYear = timekeeping?.year || (timekeeping?.month ? parseInt(String(timekeeping.month).split('-')[0] || '2026', 10) : settings?.currentYear || 2026);
 
   const standardDays = getStandardWorkDaysForMonth(settings, parsedYear, parsedMonth);
   const standardHours = settings?.standardWorkHoursPerDay || 8;
@@ -359,19 +407,12 @@ export const calculateEmployeePayroll = (
     : (employee.salaryBasis === 'hourly' ? (employee.baseSalary > 0 ? employee.baseSalary : standardHourlyRate) : standardHourlyRate);
 
   // 2. Tính lương chính theo công thức chuẩn:
-  // - Lương tháng = (Lương CB / Số ngày công chuẩn) × Số ngày làm việc thực tế
-  // - Lương theo ngày công = Lương CB (lương thỏa thuận) × Số ngày làm việc thực tế
-  // - Lương theo giờ = Đơn giá lương/giờ × Số giờ làm việc thực tế
-  // - Lương theo KPI (%) = (Lương CB × % KPI / Số ngày công chuẩn) × Số ngày làm việc thực tế
   let mainSalary = 0;
   if (employee.salaryBasis === 'hourly') {
-    // Phương án tính lương theo giờ: Đơn giá giờ * Số giờ làm việc thực tế
     mainSalary = Math.round(appliedHourlyRate * actualWorkHours);
   } else if (employee.salaryBasis === 'daily') {
-    // Lương theo ngày công = Lương CB (lương thỏa thuận) x Số ngày làm việc thực tế
     mainSalary = Math.round(employee.baseSalary * actualPaidDays);
   } else if (employee.salaryBasis === 'monthly') {
-    // Lương tháng = (Lương CB / Số ngày công chuẩn) × Số ngày làm việc thực tế
     mainSalary = Math.round((employee.baseSalary / (standardDays || 1)) * actualPaidDays);
   } else if (employee.salaryBasis === 'percent') {
     const percent = (employee.salaryPercent ?? 100) / 100;
@@ -380,11 +421,12 @@ export const calculateEmployeePayroll = (
     mainSalary = Math.round((employee.baseSalary / (standardDays || 1)) * actualPaidDays);
   }
   
-  // 3. Tính tiền làm thêm giờ (Overtime)
-  // 3. Tiền làm thêm giờ (OT) & Phân định Miễn thuế / Chịu thuế theo thiết lập
+  // 3. Tiền làm thêm giờ (OT) & Quy định miễn thuế:
+  // "Thu nhập tăng ca bị tính thuế TNCN: phần vượt 40 giờ/tháng và 200 giờ/năm"
   const otNormalHours = timekeeping?.totalOtNormalHours || 0;
   const otWeekendHours = timekeeping?.totalOtWeekendHours || 0;
   const otHolidayHours = timekeeping?.totalOtHolidayHours || 0;
+  const otHoursTotal = otNormalHours + otWeekendHours + otHolidayHours;
 
   const otRules: TaxExemptionRules = settings?.taxExemptionRules || DEFAULT_TAX_EXEMPTION_RULES;
 
@@ -398,45 +440,72 @@ export const calculateEmployeePayroll = (
   const otPayHolidayTotal = otHolidayHours * otBaseHourlyRate * otHolidayRate;
   const totalOtPay = Math.round(otPayWeekdayTotal + otPayWeekendTotal + otPayHolidayTotal);
 
+  // Khống chế trần làm thêm giờ: 40 giờ/tháng & 200 giờ/năm
+  const monthlyHoursCap = otRules.otMonthlyHoursCap ?? 40;
+  const yearlyHoursCap = otRules.otYearlyHoursCap ?? 200;
+  const priorYearOtHours = getPriorYearOtHours(employee.id, parsedYear, parsedMonth, allTimekeepings);
+  const remainingYearlyQuota = Math.max(0, yearlyHoursCap - priorYearOtHours);
+
+  // Số giờ làm thêm trong hạn mức (eligible) được xét ưu đãi thuế
+  const enforceCaps = otRules.otCapExceededTaxable !== false;
+  const otHoursEligible = enforceCaps
+    ? Math.max(0, Math.min(otHoursTotal, monthlyHoursCap, remainingYearlyQuota))
+    : otHoursTotal;
+  const otHoursExcess = Math.max(0, otHoursTotal - otHoursEligible);
+
   let otPayTaxable = 0;
   let otPayTaxExempt = 0;
 
-  if (otRules.otExemptMode === 'differential_only') {
-    // Hiện hành theo TT 111/2013/TT-BTC: 100% lương giờ chuẩn là chịu thuế, phần dôi thêm (50%, 100%, 200%) được miễn thuế
-    const otPayWeekdayTaxable = otNormalHours * otBaseHourlyRate * 1.0;
-    const otPayWeekdayExempt = otNormalHours * otBaseHourlyRate * (otWeekdayRate - 1.0);
-    
-    const otPayWeekendTaxable = otWeekendHours * otBaseHourlyRate * 1.0;
-    const otPayWeekendExempt = otWeekendHours * otBaseHourlyRate * (otWeekendRate - 1.0);
-    
-    const otPayHolidayTaxable = otHolidayHours * otBaseHourlyRate * 1.0;
-    const otPayHolidayExempt = otHolidayHours * otBaseHourlyRate * (otHolidayRate - 1.0);
-
-    otPayTaxable = Math.round(otPayWeekdayTaxable + otPayWeekendTaxable + otPayHolidayTaxable);
-    otPayTaxExempt = Math.round(otPayWeekdayExempt + otPayWeekendExempt + otPayHolidayExempt);
-  } else if (otRules.otExemptMode === 'fully_exempt') {
-    // Miễn thuế toàn bộ 100% tiền làm thêm giờ
+  if (otHoursTotal === 0) {
     otPayTaxable = 0;
-    otPayTaxExempt = totalOtPay;
+    otPayTaxExempt = 0;
   } else if (otRules.otExemptMode === 'fully_taxable') {
-    // Tính thuế toàn bộ 100% tiền làm thêm giờ
     otPayTaxable = totalOtPay;
     otPayTaxExempt = 0;
-  } else if (otRules.otExemptMode === 'custom_rate') {
-    // Miễn thuế theo tỷ lệ % tự cấu hình
-    const customRate = (otRules.otCustomExemptRate ?? 50) / 100;
-    otPayTaxExempt = Math.round(totalOtPay * customRate);
-    otPayTaxable = Math.max(0, totalOtPay - otPayTaxExempt);
   } else {
-    // Mặc định an toàn (differential_only)
-    const otPayWeekdayTaxable = otNormalHours * otBaseHourlyRate * 1.0;
-    const otPayWeekdayExempt = otNormalHours * otBaseHourlyRate * (otWeekdayRate - 1.0);
-    const otPayWeekendTaxable = otWeekendHours * otBaseHourlyRate * 1.0;
-    const otPayWeekendExempt = otWeekendHours * otBaseHourlyRate * (otWeekendRate - 1.0);
-    const otPayHolidayTaxable = otHolidayHours * otBaseHourlyRate * 1.0;
-    const otPayHolidayExempt = otHolidayHours * otBaseHourlyRate * (otHolidayRate - 1.0);
-    otPayTaxable = Math.round(otPayWeekdayTaxable + otPayWeekendTaxable + otPayHolidayTaxable);
-    otPayTaxExempt = Math.round(otPayWeekdayExempt + otPayWeekendExempt + otPayHolidayExempt);
+    // Tỷ lệ giờ trong hạn mức được miễn thuế
+    const eligibleRatio = otHoursTotal > 0 ? (otHoursEligible / otHoursTotal) : 1;
+    const eligibleNormal = otNormalHours * eligibleRatio;
+    const eligibleWeekend = otWeekendHours * eligibleRatio;
+    const eligibleHoliday = otHolidayHours * eligibleRatio;
+
+    if (otRules.otExemptMode === 'differential_only') {
+      // Chỉ miễn phần chênh lệch cao hơn đơn giá ngày thường cho SỐ GIỜ TRONG HẠN MỨC (<=40h/tháng và <=200h/năm).
+      // Phần làm thêm vượt trần (otHoursExcess) bị tính thuế TNCN 100% (cả lương giờ gốc và tiền vượt mức).
+      const exemptDifferential = 
+        eligibleNormal * otBaseHourlyRate * (otWeekdayRate - 1.0) +
+        eligibleWeekend * otBaseHourlyRate * (otWeekendRate - 1.0) +
+        eligibleHoliday * otBaseHourlyRate * (otHolidayRate - 1.0);
+
+      otPayTaxExempt = Math.round(exemptDifferential);
+      otPayTaxable = Math.max(0, totalOtPay - otPayTaxExempt);
+    } else if (otRules.otExemptMode === 'fully_exempt') {
+      // Miễn thuế 100% cho số giờ trong hạn mức, phần vượt trần bị tính thuế toàn bộ
+      const eligiblePay = 
+        eligibleNormal * otBaseHourlyRate * otWeekdayRate +
+        eligibleWeekend * otBaseHourlyRate * otWeekendRate +
+        eligibleHoliday * otBaseHourlyRate * otHolidayRate;
+
+      otPayTaxExempt = Math.round(eligiblePay);
+      otPayTaxable = Math.max(0, totalOtPay - otPayTaxExempt);
+    } else if (otRules.otExemptMode === 'custom_rate') {
+      const customRate = (otRules.otCustomExemptRate ?? 50) / 100;
+      const eligiblePay = 
+        eligibleNormal * otBaseHourlyRate * otWeekdayRate +
+        eligibleWeekend * otBaseHourlyRate * otWeekendRate +
+        eligibleHoliday * otBaseHourlyRate * otHolidayRate;
+
+      otPayTaxExempt = Math.round(eligiblePay * customRate);
+      otPayTaxable = Math.max(0, totalOtPay - otPayTaxExempt);
+    } else {
+      const exemptDifferential = 
+        eligibleNormal * otBaseHourlyRate * (otWeekdayRate - 1.0) +
+        eligibleWeekend * otBaseHourlyRate * (otWeekendRate - 1.0) +
+        eligibleHoliday * otBaseHourlyRate * (otHolidayRate - 1.0);
+
+      otPayTaxExempt = Math.round(exemptDifferential);
+      otPayTaxable = Math.max(0, totalOtPay - otPayTaxExempt);
+    }
   }
 
   // 4. Phụ cấp đặc thù & Tách biệt Chịu thuế / Miễn thuế theo quy định
@@ -455,7 +524,6 @@ export const calculateEmployeePayroll = (
       } else if (otRules.uniformExemptMode === 'fully_taxable') {
         taxableAllowances += alw.amount;
       } else {
-        // Capped: Mặc định tối đa 416,667 đ/tháng (~ 5,000,000 đ/năm theo TT 111/2013/TT-BTC)
         const cap = otRules.uniformExemptMonthlyCap ?? 416667;
         const exemptPart = Math.min(alw.amount, cap);
         const taxablePart = Math.max(0, alw.amount - cap);
@@ -472,7 +540,6 @@ export const calculateEmployeePayroll = (
         taxExemptAllowances += exemptPart;
         taxableAllowances += taxablePart;
       } else {
-        // company_policy: Tuân theo quy chế công ty (nếu isTaxable === false là miễn thuế)
         if (alw.isTaxable) {
           taxableAllowances += alw.amount;
         } else {
@@ -489,7 +556,6 @@ export const calculateEmployeePayroll = (
         taxExemptAllowances += exemptPart;
         taxableAllowances += taxablePart;
       } else {
-        // company_policy
         if (alw.isTaxable) {
           taxableAllowances += alw.amount;
         } else {
@@ -497,7 +563,6 @@ export const calculateEmployeePayroll = (
         }
       }
     } else {
-      // Phụ cấp khác: tôn trọng cấu hình alw.isTaxable của từng phụ cấp
       if (alw.isTaxable) {
         taxableAllowances += alw.amount;
       } else {
@@ -506,13 +571,13 @@ export const calculateEmployeePayroll = (
     }
   });
   
-  // 5. Tiền ăn ca / ăn trưa
+  // 5. Tiền ăn ca / ăn trưa: Mức trần chuyển từ 720.000/730.000 thành 1.200.000 đ/tháng
   let mealAllowance = 0;
   let mealDeduction = 0;
   const mealPlan = mealReg?.planType || 'none';
   
   if (mealPlan === 'cash') {
-    const flatAmount = mealReg?.monthlyFlatAmount ?? settings.monthlyMealFlatRate;
+    const flatAmount = mealReg?.monthlyFlatAmount ?? (settings?.monthlyMealFlatRate || 1200000);
     mealAllowance = flatAmount;
     
     if (otRules.mealExemptMode === 'fully_exempt') {
@@ -520,8 +585,8 @@ export const calculateEmployeePayroll = (
     } else if (otRules.mealExemptMode === 'fully_taxable') {
       taxableAllowances += mealAllowance;
     } else {
-      // Capped: Mức tối đa miễn thuế theo quy định hiện hành là 730,000 đ/tháng (TT 26/2016/TT-BLĐTBXH)
-      const maxExempt = otRules.mealExemptMonthlyCap ?? (settings.monthlyMealFlatRate || 730000);
+      // Capped: Mức tối đa miễn thuế theo quy định chuyển thành 1,200,000 đ/tháng
+      const maxExempt = otRules.mealExemptMonthlyCap ?? (settings?.monthlyMealFlatRate || 1200000);
       if (mealAllowance <= maxExempt) {
         taxExemptAllowances += mealAllowance;
       } else {
@@ -577,8 +642,7 @@ export const calculateEmployeePayroll = (
     totalInsuranceEmployer = socialInsuranceEmployer + healthInsuranceEmployer + unempInsuranceEmployer + tradeUnionEmployer;
   }
   
-  // 8. Giảm trừ gia cảnh & Thuế TNCN
-  // Kiểm tra người phụ thuộc hợp lệ trong tháng
+  // 8. Giảm trừ gia cảnh & Thuế TNCN (Bản thân 15.500.000, NPT 6.200.000)
   const currentMonthStr = timekeeping ? String(timekeeping.month) : `${settings?.currentYear || 2026}-${String(settings?.currentMonth || 9).padStart(2, '0')}`;
   const validDependents = dependents.filter(dep => {
     if (!dep.startDate) return true;
@@ -588,11 +652,11 @@ export const calculateEmployeePayroll = (
   });
   
   const dependentCount = validDependents.length;
-  const personalDeduction = settings?.personalDeduction || 11000000;
-  const dependentDeduction = dependentCount * (settings?.dependentDeduction || 4400000);
+  const personalDeduction = settings?.personalDeduction || 15500000;
+  const dependentDeduction = dependentCount * (settings?.dependentDeduction || 6200000);
   
   // Thu nhập chịu thuế = Gross - Thu nhập miễn thuế
-  // Thu nhập miễn thuế bao gồm: OT phần vượt (otPayTaxExempt), phụ cấp miễn thuế (taxExemptAllowances)
+  // Thu nhập miễn thuế bao gồm: OT phần được miễn (otPayTaxExempt), phụ cấp miễn thuế (taxExemptAllowances)
   const taxableIncome = Math.max(0, grossIncome - otPayTaxExempt - taxExemptAllowances);
   
   // Các khoản giảm trừ tính thuế = Bản thân + Người phụ thuộc + BHXH cá nhân đóng
@@ -601,7 +665,7 @@ export const calculateEmployeePayroll = (
   // Thu nhập tính thuế
   const assessableIncome = Math.max(0, taxableIncome - totalDeductionsForTax);
   
-  // Thuế TNCN (áp dụng theo biểu lũy tiến từng phần đã cấu hình)
+  // Thuế TNCN (áp dụng theo biểu lũy tiến từng phần đã cấu hình - mặc định 5 bậc)
   const personalIncomeTax = calculatePersonalIncomeTax(assessableIncome, settings?.taxBrackets);
   
   // 9. Thực lĩnh (Net Salary)
@@ -624,6 +688,10 @@ export const calculateEmployeePayroll = (
     mainSalary,
     otPayTaxable,
     otPayTaxExempt,
+    otHoursTotal,
+    otHoursEligible,
+    otHoursExcess,
+    priorYearOtHours,
     taxableAllowances,
     taxExemptAllowances,
     mealAllowance,

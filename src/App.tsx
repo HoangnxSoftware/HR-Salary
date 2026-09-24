@@ -161,7 +161,10 @@ function PayrollAppContent() {
         meal,
         empAllowances,
         empDependents,
-        settings
+        settings,
+        0,
+        0,
+        timekeepings
       );
     });
   }, [employees, timekeepings, insurances, mealRegistrations, specialAllowances, dependents, settings]);

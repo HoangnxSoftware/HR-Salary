@@ -89,7 +89,7 @@ export const EditTaxExemptionModal: React.FC<EditTaxExemptionModalProps> = ({
                 <h4 className="font-bold text-slate-900 text-sm">1. Tiền Làm Thêm Giờ (Tăng Ca / Overtime)</h4>
               </div>
               <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                Điều 3 Luật Thuế TNCN & TT 111/2013/TT-BTC
+                Bộ luật Lao động 2019 & Luật Thuế TNCN
               </span>
             </div>
 
@@ -109,7 +109,7 @@ export const EditTaxExemptionModal: React.FC<EditTaxExemptionModalProps> = ({
                   </span>
                   <span className="text-slate-500 text-[11px] block mt-0.5">
                     • Phần trả tương ứng 100% đơn giá chuẩn là chịu thuế.<br/>
-                    • Phần dôi thêm vượt mức (50% ngày thường, 100% ngày nghỉ tuần, 200% ngày lễ) được miễn thuế TNCN.
+                    • Phần dôi thêm vượt mức (50% ngày thường, 100% ngày nghỉ tuần, 200% ngày lễ) trong định mức được miễn thuế TNCN.
                   </span>
                 </div>
               </label>
@@ -125,10 +125,10 @@ export const EditTaxExemptionModal: React.FC<EditTaxExemptionModalProps> = ({
                 />
                 <div>
                   <span className="font-bold text-emerald-800 block">
-                    Miễn thuế 100% toàn bộ tiền làm thêm giờ (Ưu đãi đặc thù)
+                    Miễn thuế 100% tiền làm thêm giờ trong hạn mức (Ưu đãi đặc thù)
                   </span>
                   <span className="text-slate-500 text-[11px] block mt-0.5">
-                    Toàn bộ tiền lương làm thêm giờ (cả 100% và phần dôi thêm) đều được miễn thuế TNCN.
+                    Toàn bộ tiền lương làm thêm giờ trong hạn mức đều được miễn thuế TNCN.
                   </span>
                 </div>
               </label>
@@ -183,6 +183,61 @@ export const EditTaxExemptionModal: React.FC<EditTaxExemptionModalProps> = ({
                 </div>
               </label>
             </div>
+
+            {/* Trần giờ làm thêm & quy định tính thuế phần vượt trần */}
+            <div className="mt-3 p-3 bg-white rounded-lg border border-indigo-100 space-y-3">
+              <div className="flex items-center gap-2 text-indigo-900 font-bold">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span>Quy định khống chế trần làm thêm giờ (40h/tháng & 200h/năm)</span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Căn cứ Điều 107 Bộ luật Lao động 2019 và chính sách thuế TNCN: Thu nhập tăng ca bị tính thuế TNCN đối với phần vượt <strong>40 giờ/tháng</strong> và <strong>200 giờ/năm</strong>.
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="font-semibold text-slate-700">Mức trần giờ/tháng:</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      value={rules.otMonthlyHoursCap ?? 40}
+                      onChange={e => setRules({ ...rules, otMonthlyHoursCap: Math.max(0, Number(e.target.value)) })}
+                      className="w-20 px-2 py-1 border border-slate-300 rounded font-mono font-bold text-right text-xs focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    />
+                    <span className="font-bold text-slate-600 text-xs">giờ/tháng</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="font-semibold text-slate-700">Mức trần giờ/năm:</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      value={rules.otYearlyHoursCap ?? 200}
+                      onChange={e => setRules({ ...rules, otYearlyHoursCap: Math.max(0, Number(e.target.value)) })}
+                      className="w-20 px-2 py-1 border border-slate-300 rounded font-mono font-bold text-right text-xs focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    />
+                    <span className="font-bold text-slate-600 text-xs">giờ/năm</span>
+                  </div>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rules.otCapExceededTaxable !== false}
+                  onChange={e => setRules({ ...rules, otCapExceededTaxable: e.target.checked })}
+                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="font-bold text-slate-800 text-xs">
+                  Phần tiền làm thêm vượt 40 giờ/tháng hoặc 200 giờ/năm bị tính thuế TNCN 100% (không được miễn thuế)
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* 2. MỨC ĂN CA CHI TRẢ BẰNG TIỀN MẶT */}
@@ -227,7 +282,7 @@ export const EditTaxExemptionModal: React.FC<EditTaxExemptionModalProps> = ({
                     </span>
                   </div>
                   <span className="text-slate-500 text-[11px] block mt-1">
-                    • Mức quy định hiện hành theo Thông tư 26/2016/TT-BLĐTBXH là <strong>730,000 đ/tháng</strong>.<br/>
+                    • Mức quy định chuyển đổi từ 720.000 đ/tháng thành <strong>1.200.000 đ/tháng</strong>.<br/>
                     • Phần chi trả thực tế vượt mức trần này sẽ tự động chuyển thành thu nhập chịu thuế TNCN.
                   </span>
                 </div>

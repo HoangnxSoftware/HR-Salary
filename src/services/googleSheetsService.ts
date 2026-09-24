@@ -51,17 +51,166 @@ const SHEET_NAMES = [
   'Bang_ThanhToanLuong'
 ];
 
+/** Tên thư mục quản lý tập trung cơ sở dữ liệu trên Google Drive */
+export const GOOGLE_DRIVE_FOLDER_NAME = 'HR-Salary';
+
+export interface DriveFolderInfo {
+  id: string;
+  name: string;
+  webViewLink?: string;
+}
+
 /**
- * Tìm hoặc tạo mới Spreadsheet trên Google Drive
+ * Tìm hoặc tự động tạo mới thư mục HR-Salary trên Google Drive nếu chưa tồn tại.
+ * Đảm bảo mọi cơ sở dữ liệu đều được quản lý tập trung tại thư mục này.
  */
-export const getOrCreateSpreadsheet = async (title: string): Promise<{ id: string; url: string }> => {
+export const getOrCreateHRSalaryFolder = async (authToken?: string): Promise<DriveFolderInfo> => {
+  const token = authToken || await getAccessToken();
+  if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
+
+  // 1. Tìm thư mục HR-Salary đã có trên Google Drive
+  try {
+    const query = encodeURIComponent(
+      `name = '${GOOGLE_DRIVE_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+    );
+    const searchRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,webViewLink)&pageSize=5`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      if (searchData.files && searchData.files.length > 0) {
+        const folder = searchData.files[0];
+        return {
+          id: folder.id,
+          name: folder.name,
+          webViewLink: folder.webViewLink || `https://drive.google.com/drive/folders/${folder.id}`
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi kiểm tra thư mục HR-Salary trên Drive, sẽ tiến hành tạo mới:', err);
+  }
+
+  // 2. Chưa có thư mục HR-Salary -> Tự động khởi tạo thư mục này trên Drive
+  const createFolderRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: GOOGLE_DRIVE_FOLDER_NAME,
+      mimeType: 'application/vnd.google-apps.folder',
+      description: 'Thư mục quản lý tập trung cơ sở dữ liệu Bảng Lương & Nhân Sự HR-Salary'
+    })
+  });
+
+  if (!createFolderRes.ok) {
+    const errText = await createFolderRes.text();
+    throw new Error(`Không thể khởi tạo thư mục '${GOOGLE_DRIVE_FOLDER_NAME}' trên Google Drive: ${errText}`);
+  }
+
+  const createdFolder = await createFolderRes.json();
+  return {
+    id: createdFolder.id,
+    name: createdFolder.name || GOOGLE_DRIVE_FOLDER_NAME,
+    webViewLink: createdFolder.webViewLink || `https://drive.google.com/drive/folders/${createdFolder.id}`
+  };
+};
+
+/**
+ * Di chuyển hoặc gắn bảng tính vào thư mục HR-Salary để đảm bảo tập trung dữ liệu
+ */
+export const moveSpreadsheetToFolder = async (
+  fileId: string,
+  targetFolderId: string,
+  token: string
+): Promise<boolean> => {
+  try {
+    const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,parents`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!getRes.ok) {
+      console.warn('Không thể đọc thông tin thư mục cha của file:', await getRes.text());
+      return false;
+    }
+
+    const data = await getRes.json();
+    const currentParents: string[] = data.parents || [];
+
+    // Nếu file đã nằm trong thư mục đích thì giữ nguyên
+    if (currentParents.includes(targetFolderId)) {
+      return true;
+    }
+
+    const removeParents = currentParents.join(',');
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${targetFolderId}${
+      removeParents ? `&removeParents=${encodeURIComponent(removeParents)}` : ''
+    }&fields=id,parents`;
+
+    const patchRes = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    });
+
+    return patchRes.ok;
+  } catch (error) {
+    console.warn('Lỗi khi chuyển file vào thư mục HR-Salary:', error);
+    return false;
+  }
+};
+
+/**
+ * Đảm bảo bảng tính được liên kết nằm trong thư mục HR-Salary
+ */
+export const ensureSpreadsheetInHRSalaryFolder = async (
+  spreadsheetId: string
+): Promise<{ folder: DriveFolderInfo; moved: boolean }> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
 
-  // 1. Tìm file đã có trên Drive
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  const folder = await getOrCreateHRSalaryFolder(token);
+
+  const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${cleanId}?fields=id,parents`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (fileRes.ok) {
+    const data = await fileRes.json();
+    const parents = data.parents || [];
+    if (!parents.includes(folder.id)) {
+      const moved = await moveSpreadsheetToFolder(cleanId, folder.id, token);
+      return { folder, moved };
+    }
+  }
+
+  return { folder, moved: false };
+};
+
+/**
+ * Tìm hoặc tạo mới Spreadsheet trong thư mục HR-Salary trên Google Drive
+ */
+export const getOrCreateSpreadsheet = async (title: string): Promise<{ id: string; url: string; folderId: string }> => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
+
+  // 1. Tự động kiểm tra hoặc khởi tạo thư mục HR-Salary nếu chưa có
+  const folder = await getOrCreateHRSalaryFolder(token);
+
+  // 2. Tìm file đã có trong chính thư mục HR-Salary
   try {
-    const query = encodeURIComponent(`name = '${title.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`);
-    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,webViewLink)`, {
+    const queryInFolder = encodeURIComponent(
+      `'${folder.id}' in parents and name = '${title.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`
+    );
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${queryInFolder}&fields=files(id,name,webViewLink)`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -71,15 +220,36 @@ export const getOrCreateSpreadsheet = async (title: string): Promise<{ id: strin
         const file = searchData.files[0];
         return {
           id: file.id,
-          url: file.webViewLink || `https://docs.google.com/spreadsheets/d/${file.id}/edit`
+          url: file.webViewLink || `https://docs.google.com/spreadsheets/d/${file.id}/edit`,
+          folderId: folder.id
+        };
+      }
+    }
+
+    // 3. Nếu chưa có trong HR-Salary, kiểm tra file ở ngoài; nếu có thì chuyển vào HR-Salary để tập trung quản lý
+    const queryGeneral = encodeURIComponent(
+      `name = '${title.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`
+    );
+    const generalRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${queryGeneral}&fields=files(id,name,webViewLink,parents)`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (generalRes.ok) {
+      const generalData = await generalRes.json();
+      if (generalData.files && generalData.files.length > 0) {
+        const existingFile = generalData.files[0];
+        await moveSpreadsheetToFolder(existingFile.id, folder.id, token);
+        return {
+          id: existingFile.id,
+          url: existingFile.webViewLink || `https://docs.google.com/spreadsheets/d/${existingFile.id}/edit`,
+          folderId: folder.id
         };
       }
     }
   } catch (err) {
-    console.warn('Không thể tìm file cũ, sẽ tạo mới:', err);
+    console.warn('Lỗi tìm kiếm file cũ, sẽ khởi tạo mới trong HR-Salary:', err);
   }
 
-  // 2. Tạo mới Spreadsheet với đầy đủ các sheet tabs
+  // 4. Tạo mới Spreadsheet với đầy đủ các sheet tabs
   const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
     method: 'POST',
     headers: {
@@ -105,7 +275,10 @@ export const getOrCreateSpreadsheet = async (title: string): Promise<{ id: strin
   const id = createdData.spreadsheetId;
   const url = createdData.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${id}/edit`;
 
-  return { id, url };
+  // 5. Chuyển bảng tính mới vào thư mục HR-Salary
+  await moveSpreadsheetToFolder(id, folder.id, token);
+
+  return { id, url, folderId: folder.id };
 };
 
 // Helper sanitize cells to prevent undefined or NaN from breaking Google Sheets API payload
@@ -701,16 +874,28 @@ export const createEmptyCompanyData = (newCompany: NewCompanyInput): FullPayroll
 };
 
 /**
- * Lấy danh sách các bảng tính Google Sheets trên Google Drive của người dùng
+ * Lấy danh sách các bảng tính Google Sheets tập trung trong thư mục HR-Salary trên Google Drive.
+ * Bất kỳ bảng tính nào nằm ngoài thư mục HR-Salary sẽ KHÔNG có trong danh sách lựa chọn.
+ * Nếu chưa có thư mục HR-Salary, hệ thống sẽ tự động khởi tạo thư mục này.
  */
-export const listDriveSpreadsheets = async (): Promise<DriveSpreadsheetItem[]> => {
+export const listDriveSpreadsheets = async (): Promise<{
+  folder: DriveFolderInfo;
+  files: DriveSpreadsheetItem[];
+}> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
 
+  // 1. Tự động kiểm tra hoặc khởi tạo thư mục HR-Salary nếu chưa có
+  const folder = await getOrCreateHRSalaryFolder(token);
+
   try {
-    const query = encodeURIComponent(`mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`);
+    // 2. CHỈ truy vấn các bảng tính nằm TRONG thư mục HR-Salary ('${folder.id}' in parents)
+    // Các file nằm ngoài thư mục HR-Salary sẽ hoàn toàn bị loại bỏ khỏi danh sách lựa chọn
+    const query = encodeURIComponent(
+      `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`
+    );
     const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=modifiedTime desc&fields=files(id,name,webViewLink,modifiedTime)&pageSize=30`,
+      `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=modifiedTime desc&fields=files(id,name,webViewLink,modifiedTime)&pageSize=100`,
       {
         headers: { Authorization: `Bearer ${token}` }
       }
@@ -718,15 +903,16 @@ export const listDriveSpreadsheets = async (): Promise<DriveSpreadsheetItem[]> =
 
     if (!res.ok) {
       const err = await res.text();
-      console.warn('Lỗi gọi Drive files.list:', err);
-      return [];
+      console.warn('Lỗi gọi Drive files.list trong thư mục HR-Salary:', err);
+      return { folder, files: [] };
     }
 
     const data = await res.json();
-    return data.files || [];
+    const files: DriveSpreadsheetItem[] = data.files || [];
+    return { folder, files };
   } catch (error) {
-    console.error('Lỗi khi tải danh sách spreadsheet từ Drive:', error);
-    return [];
+    console.error('Lỗi khi tải danh sách spreadsheet từ thư mục HR-Salary:', error);
+    return { folder, files: [] };
   }
 };
 
@@ -773,6 +959,7 @@ export const fetchSpreadsheetDetails = async (
 
 /**
  * Tạo mới cơ sở dữ liệu trên Google Sheets cho một công ty mới hoàn toàn
+ * Tự động kiểm tra và tạo thư mục HR-Salary nếu chưa có, lưu trữ tập trung tại thư mục này.
  * Dữ liệu tạo mới để trống (0 nhân viên, 0 chấm công)
  */
 export const createNewCompanySpreadsheet = async (
@@ -782,14 +969,18 @@ export const createNewCompanySpreadsheet = async (
   url: string;
   title: string;
   cleanData: FullPayrollData;
+  folder: DriveFolderInfo;
 }> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
 
+  // 1. Tự động kiểm tra hoặc khởi tạo thư mục HR-Salary nếu chưa có
+  const folder = await getOrCreateHRSalaryFolder(token);
+
   const cleanData = createEmptyCompanyData(companyInfo);
   const title = `Bảng Lương & Nhân Sự - ${companyInfo.companyName.trim()}`;
 
-  // 1. Tạo mới Spreadsheet với đầy đủ 8 sheet tabs
+  // 2. Tạo mới Spreadsheet với đầy đủ 8 sheet tabs
   const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
     method: 'POST',
     headers: {
@@ -813,14 +1004,18 @@ export const createNewCompanySpreadsheet = async (
   const id = createdData.spreadsheetId;
   const url = createdData.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${id}/edit`;
 
-  // 2. Xuất dữ liệu cấu hình ban đầu + tiêu đề các bảng (dữ liệu nhân sự để trống)
+  // 3. DI CHUYỂN BẢNG TÍNH VÀO THƯ MỤC HR-Salary để đảm bảo toàn bộ dữ liệu tập trung tại thư mục này
+  await moveSpreadsheetToFolder(id, folder.id, token);
+
+  // 4. Xuất dữ liệu cấu hình ban đầu + tiêu đề các bảng (dữ liệu nhân sự để trống)
   await exportDataToGoogleSheets(id, cleanData);
 
   return {
     id,
     url,
     title,
-    cleanData
+    cleanData,
+    folder
   };
 };
 

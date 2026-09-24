@@ -15,6 +15,7 @@ import { TaxBracket, SystemSettings, PayrollRecord } from '../types';
 import { 
   DEFAULT_TAX_BRACKETS, 
   PROPOSED_5_TAX_BRACKETS, 
+  TRADITIONAL_7_TAX_BRACKETS,
   formatVND, 
   calculateTaxBreakdown, 
   calculatePersonalIncomeTax 
@@ -37,7 +38,7 @@ export const EditTaxBracketsModal: React.FC<EditTaxBracketsModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Clone existing brackets or use default
+  // Clone existing brackets or use default (5 brackets)
   const [brackets, setBrackets] = useState<TaxBracket[]>(() => {
     const existing = settings.taxBrackets;
     if (existing && existing.length > 0) {
@@ -47,7 +48,12 @@ export const EditTaxBracketsModal: React.FC<EditTaxBracketsModalProps> = ({
   });
 
   const [testIncome, setTestIncome] = useState<number>(25000000); // 25 million VND for test calculator
-  const [activePreset, setActivePreset] = useState<'current_7' | 'reform_5' | 'custom'>('custom');
+  const [activePreset, setActivePreset] = useState<'current_5' | 'legacy_7' | 'custom'>(() => {
+    const existing = settings.taxBrackets;
+    if (existing?.length === 5) return 'current_5';
+    if (existing?.length === 7) return 'legacy_7';
+    return 'current_5';
+  });
 
   // Handle row changes
   const handleUpdateBracket = (index: number, field: keyof TaxBracket, value: any) => {
@@ -110,13 +116,13 @@ export const EditTaxBracketsModal: React.FC<EditTaxBracketsModalProps> = ({
   };
 
   // Apply presets
-  const handleApplyPreset = (type: 'current_7' | 'reform_5') => {
-    if (type === 'current_7') {
+  const handleApplyPreset = (type: 'current_5' | 'legacy_7') => {
+    if (type === 'current_5') {
       setBrackets(JSON.parse(JSON.stringify(DEFAULT_TAX_BRACKETS)));
-      setActivePreset('current_7');
+      setActivePreset('current_5');
     } else {
-      setBrackets(JSON.parse(JSON.stringify(PROPOSED_5_TAX_BRACKETS)));
-      setActivePreset('reform_5');
+      setBrackets(JSON.parse(JSON.stringify(TRADITIONAL_7_TAX_BRACKETS)));
+      setActivePreset('legacy_7');
     }
   };
 
@@ -222,25 +228,25 @@ export const EditTaxBracketsModal: React.FC<EditTaxBracketsModalProps> = ({
               </span>
               <button
                 type="button"
-                onClick={() => handleApplyPreset('current_7')}
+                onClick={() => handleApplyPreset('current_5')}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer border ${
-                  activePreset === 'current_7'
+                  activePreset === 'current_5'
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                     : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                 }`}
               >
-                Chuẩn Luật Hiện Hành (7 Bậc - TT 111/2013)
+                Quy Định Hiện Hành (5 Bậc)
               </button>
               <button
                 type="button"
-                onClick={() => handleApplyPreset('reform_5')}
+                onClick={() => handleApplyPreset('legacy_7')}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer border ${
-                  activePreset === 'reform_5'
+                  activePreset === 'legacy_7'
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                     : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                 }`}
               >
-                Dự Thảo Cải Cách (5 Bậc Rút Gọn)
+                Biểu Thuế Cũ (7 Bậc - TT 111/2013)
               </button>
             </div>
 
@@ -490,11 +496,11 @@ export const EditTaxBracketsModal: React.FC<EditTaxBracketsModalProps> = ({
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => handleApplyPreset('current_7')}
+            onClick={() => handleApplyPreset('current_5')}
             className="flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:text-slate-900 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Khôi phục chuẩn 7 bậc</span>
+            <span>Khôi phục mặc định chuẩn 5 bậc</span>
           </button>
           
           <div className="flex items-center gap-3">

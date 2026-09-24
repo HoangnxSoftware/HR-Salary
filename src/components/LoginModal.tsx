@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ExternalLink,
   FolderOpen,
+  Folder,
   Database,
   Search,
   Check,
@@ -28,9 +29,12 @@ import { googleSignIn, logout, getCurrentUser } from '../services/authService';
 import { 
   listDriveSpreadsheets, 
   DriveSpreadsheetItem,
+  DriveFolderInfo,
   fetchSpreadsheetDetails,
   extractSpreadsheetId,
   createNewCompanySpreadsheet,
+  ensureSpreadsheetInHRSalaryFolder,
+  GOOGLE_DRIVE_FOLDER_NAME,
   FullPayrollData
 } from '../services/googleSheetsService';
 
@@ -68,6 +72,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   // Google Drive state
   const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveSpreadsheetItem[]>([]);
+  const [hrSalaryFolder, setHrSalaryFolder] = useState<DriveFolderInfo | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [customSheetInput, setCustomSheetInput] = useState('');
   const [selectedFileId, setSelectedFileId] = useState<string | null>(syncState.spreadsheetId);
@@ -89,14 +94,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   if (!isOpen) return null;
 
   // Load drive files when switching to google tab or when connected
+  // ONLY spreadsheets inside the HR-Salary folder will be listed
   const handleLoadDriveFiles = async () => {
     setIsLoadingFiles(true);
     setErrorMessage(null);
     try {
-      const files = await listDriveSpreadsheets();
+      const { folder, files } = await listDriveSpreadsheets();
+      setHrSalaryFolder(folder);
       setDriveFiles(files);
       if (files.length === 0) {
-        setErrorMessage('Không tìm thấy bảng tính nào trên Google Drive hoặc chưa có file. Bạn có thể tạo mới ở nút bên dưới.');
+        setErrorMessage(`Thư mục '${folder.name}' trên Google Drive chưa có bảng tính nào. Bảng tính ngoài thư mục này sẽ không hiển thị trong danh sách. Bạn có thể bấm 'Tạo mới cơ sở dữ liệu' để bắt đầu.`);
       }
     } catch (err: any) {
       console.warn('Lỗi khi tải file Google Drive:', err);
@@ -169,13 +176,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     try {
       const cleanId = extractSpreadsheetId(customSheetInput);
       const details = await fetchSpreadsheetDetails(cleanId);
+      // Đảm bảo bảng tính được tập trung vào thư mục HR-Salary
+      const { folder, moved } = await ensureSpreadsheetInHRSalaryFolder(cleanId);
+      setHrSalaryFolder(folder);
       setSelectedFileId(details.id);
       setSelectedFileName(details.title);
       setSelectedFileUrl(details.url);
       setIsPendingNewCompany(null);
-      setSuccessMessage(`Kết nối thành công bảng tính: ${details.title}`);
+      const msg = moved
+        ? `Kết nối thành công "${details.title}" và đã tự động đưa vào thư mục HR-Salary!`
+        : `Kết nối thành công "${details.title}" (nằm trong thư mục HR-Salary).`;
+      setSuccessMessage(msg);
       setCustomSheetInput('');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      setTimeout(() => setSuccessMessage(null), 3500);
+      handleLoadDriveFiles();
     } catch (err: any) {
       setErrorMessage(`Không tìm thấy bảng tính: ${err.message}`);
     } finally {
@@ -206,6 +220,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setSelectedFileId(res.id);
       setSelectedFileName(res.title);
       setSelectedFileUrl(res.url);
+      setHrSalaryFolder(res.folder);
       setIsPendingNewCompany(res.cleanData);
 
       // Also apply right away to app if callback provided
@@ -226,7 +241,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         syncMessage: `Đang kết nối cơ sở dữ liệu mới: ${res.title}`
       }));
 
-      const msg = `Đã tạo mới thành công bảng tính "${res.title}" trên Google Drive! Cơ sở dữ liệu được để trống hoàn toàn để bạn nhập liệu khi đăng nhập.`;
+      const msg = `Đã tạo mới thành công bảng tính "${res.title}" trong thư mục HR-Salary trên Google Drive! Cơ sở dữ liệu được để trống hoàn toàn để bạn nhập liệu khi đăng nhập.`;
       setNewCompanySuccessNotice(msg);
       setSuccessMessage(msg);
       setShowCreateCompanyForm(false);
@@ -234,6 +249,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setNewCompanyTaxCode('');
       setNewCompanyDirector('');
       setNewCompanyAccountant('');
+
+      // Reload drive list to include the newly created sheet in HR-Salary folder
+      handleLoadDriveFiles();
 
       // Auto switch to login tab
       setTimeout(() => {
@@ -654,6 +672,40 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               )}
             </div>
 
+            {/* DEDICATED HR-SALARY FOLDER BANNER */}
+            <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50/70 border border-amber-200/90 rounded-2xl flex items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Folder className="w-5 h-5 fill-amber-100" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase font-bold text-amber-800 flex items-center gap-1.5 flex-wrap">
+                    <span>Thư mục lưu trữ tập trung:</span>
+                    <span className="px-2 py-0.5 bg-amber-200/80 text-amber-950 font-black rounded-md tracking-wider">
+                      {GOOGLE_DRIVE_FOLDER_NAME}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-900/80 mt-0.5 leading-snug">
+                    Tất cả cơ sở dữ liệu phải nằm trong thư mục <strong>HR-Salary</strong>. File bên ngoài sẽ không xuất hiện trong danh sách.
+                  </p>
+                </div>
+              </div>
+
+              {hrSalaryFolder?.webViewLink && (
+                <a
+                  href={hrSalaryFolder.webViewLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold shadow-2xs transition-colors shrink-0 cursor-pointer"
+                  title="Mở thư mục HR-Salary trên Google Drive"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-amber-700" />
+                  <span className="hidden sm:inline">Mở HR-Salary</span>
+                  <ExternalLink className="w-3 h-3 text-amber-600" />
+                </a>
+              )}
+            </div>
+
             {/* Currently Active / Selected Spreadsheet Display */}
             {selectedFileId && (
               <div className="p-3 bg-emerald-50/80 border border-emerald-300 rounded-2xl flex items-center justify-between gap-3 text-xs">
@@ -859,47 +911,66 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   {isLoadingFiles ? (
                     <div className="py-6 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-emerald-600" />
-                      <span>Đang quét danh sách bảng tính trên Google Drive của bạn...</span>
+                      <span>Đang quét danh sách bảng tính trong thư mục HR-Salary trên Google Drive...</span>
                     </div>
                   ) : filteredFiles.length > 0 ? (
-                    <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
-                      {filteredFiles.map(file => {
-                        const isSelected = selectedFileId === file.id;
-                        return (
-                          <div
-                            key={file.id}
-                            onClick={() => handleSelectSpreadsheet(file)}
-                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 text-xs ${
-                              isSelected
-                                ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
-                                : 'bg-slate-50/70 hover:bg-slate-100 border-slate-200 text-slate-800'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <FileSpreadsheet className={`w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`} />
-                              <span className="truncate">{file.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {isSelected ? (
-                                <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[10px] font-bold">
-                                  Đang chọn
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                        <span className="flex items-center gap-1 font-semibold text-slate-700">
+                          <Folder className="w-3.5 h-3.5 text-amber-500 fill-amber-100" />
+                          <span>Bảng tính trong thư mục <strong>HR-Salary</strong> ({filteredFiles.length}):</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 italic">Chỉ hiển thị file trong HR-Salary</span>
+                      </div>
+
+                      <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
+                        {filteredFiles.map(file => {
+                          const isSelected = selectedFileId === file.id;
+                          return (
+                            <div
+                              key={file.id}
+                              onClick={() => handleSelectSpreadsheet(file)}
+                              className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 text-xs ${
+                                isSelected
+                                  ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold'
+                                  : 'bg-slate-50/70 hover:bg-slate-100 border-slate-200 text-slate-800'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <FileSpreadsheet className={`w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-600' : 'text-emerald-500'}`} />
+                                <span className="truncate">{file.name}</span>
+                                <span className="text-[9px] px-1.5 py-0.5 bg-amber-100/90 text-amber-800 rounded font-semibold shrink-0">
+                                  HR-Salary
                                 </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="px-2 py-0.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 rounded-md text-[10px]"
-                                >
-                                  Chọn
-                                </button>
-                              )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isSelected ? (
+                                  <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[10px] font-bold">
+                                    Đang chọn
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="px-2 py-0.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 rounded-md text-[10px]"
+                                  >
+                                    Chọn
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : (
-                    <div className="py-4 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      Chưa có bảng tính nào được tải. Nhấn nút &quot;Làm mới&quot; hoặc &quot;Tạo mới cơ sở dữ liệu&quot; ở trên.
+                    <div className="py-5 px-3 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-1.5">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                        <Folder className="w-4 h-4 fill-amber-200" />
+                      </div>
+                      <p className="font-bold text-slate-700">Chưa có bảng tính nào trong thư mục &quot;HR-Salary&quot;.</p>
+                      <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
+                        Toàn bộ dữ liệu nằm ngoài thư mục <strong>HR-Salary</strong> sẽ không xuất hiện trong danh sách để đảm bảo quản lý tập trung. Hãy nhấn nút <strong>&quot;+ Mở form tạo mới&quot;</strong> ở trên để khởi tạo cơ sở dữ liệu công ty mới vào thư mục HR-Salary.
+                      </p>
                     </div>
                   )}
                 </div>

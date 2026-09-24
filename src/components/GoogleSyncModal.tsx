@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Cloud, 
   ExternalLink, 
@@ -11,12 +11,16 @@ import {
   UploadCloud,
   DownloadCloud,
   ShieldCheck,
-  FolderOpen
+  FolderOpen,
+  Folder
 } from 'lucide-react';
 import { GoogleSyncState, SystemSettings } from '../types';
 import { googleSignIn, logout, getCurrentUser } from '../services/authService';
 import { 
   getOrCreateSpreadsheet, 
+  getOrCreateHRSalaryFolder,
+  GOOGLE_DRIVE_FOLDER_NAME,
+  DriveFolderInfo,
   exportDataToGoogleSheets, 
   importDataFromGoogleSheets,
   FullPayrollData
@@ -41,12 +45,21 @@ export const GoogleSyncModal: React.FC<GoogleSyncModalProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [folderInfo, setFolderInfo] = useState<DriveFolderInfo | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     show: boolean;
     title: string;
     message: string;
     action: () => Promise<void>;
   } | null>(null);
+
+  useEffect(() => {
+    if (syncState.isConnected && isOpen) {
+      getOrCreateHRSalaryFolder()
+        .then(setFolderInfo)
+        .catch(err => console.warn('Không thể lấy thông tin thư mục HR-Salary:', err));
+    }
+  }, [syncState.isConnected, isOpen]);
 
   if (!isOpen) return null;
 
@@ -251,6 +264,31 @@ export const GoogleSyncModal: React.FC<GoogleSyncModalProps> = ({
                 >
                   <span>Mở Google Sheets</span>
                   <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+
+            {/* Central HR-Salary Folder Notice */}
+            <div className="flex items-center justify-between p-2.5 bg-amber-50/80 border border-amber-200/90 rounded-lg text-xs">
+              <div className="flex items-center gap-2">
+                <Folder className="w-4 h-4 text-amber-600 fill-amber-100 shrink-0" />
+                <div>
+                  <span className="text-slate-500">Thư mục lưu trữ: </span>
+                  <span className="font-bold text-amber-950 bg-amber-200/70 px-1.5 py-0.5 rounded">
+                    Google Drive / {GOOGLE_DRIVE_FOLDER_NAME}
+                  </span>
+                </div>
+              </div>
+              {folderInfo?.webViewLink && (
+                <a
+                  href={folderInfo.webViewLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-white border border-amber-300 px-2 py-0.5 rounded-md hover:bg-amber-100/60 shadow-2xs transition-colors shrink-0"
+                >
+                  <FolderOpen className="w-3 h-3 text-amber-700" />
+                  <span>Mở HR-Salary</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
                 </a>
               )}
             </div>

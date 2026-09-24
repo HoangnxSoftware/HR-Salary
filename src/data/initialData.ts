@@ -51,10 +51,10 @@ export const initialSettings: SystemSettings = {
   otHolidayRate: 3.0, // 300%
   otNightBonusRate: 0.3, // 30%
   
-  personalDeduction: 11000000, // 11,000,000 VND
-  dependentDeduction: 4400000, // 4,400,000 VND
-  taxBrackets: DEFAULT_TAX_BRACKETS, // Biểu lũy tiến từng phần 7 bậc chuẩn Thông tư 111/2013/TT-BTC
-  taxExemptionRules: DEFAULT_TAX_EXEMPTION_RULES, // Quy định thu nhập miễn thuế TNCN (Tăng ca, ăn ca, trang phục...)
+  personalDeduction: 15500000, // 15,500,000 VND (Mức giảm trừ bản thân quy định mới)
+  dependentDeduction: 6200000, // 6,200,000 VND (Mức giảm trừ người phụ thuộc quy định mới)
+  taxBrackets: DEFAULT_TAX_BRACKETS, // Biểu thuế TNCN 5 bậc theo quy định hiện hành
+  taxExemptionRules: DEFAULT_TAX_EXEMPTION_RULES, // Quy định miễn thuế TNCN (OT trần 40h/tháng & 200h/năm, ăn ca 1.200.000 đ)
   
   socialInsRateEmployee: 8.0,
   healthInsRateEmployee: 1.5,
@@ -66,7 +66,7 @@ export const initialSettings: SystemSettings = {
   tradeUnionRateEmployer: 2.0,
   
   standardMealPerDay: 35000,
-  monthlyMealFlatRate: 730000,
+  monthlyMealFlatRate: 1200000, // Chuyển từ 720.000 thành 1.200.000 VND / tháng
   
   departments: [
     { id: 'dep-bgd', code: 'BGD', name: 'Ban Giám đốc', managerName: 'Nguyễn Văn Thành', description: 'Điều hành chiến lược toàn công ty' },
@@ -527,11 +527,11 @@ export const initialInsurances: InsuranceRecord[] = [
 
 export const initialMealRegistrations: MealRegistration[] = [
   { id: 'meal-01', employeeId: 'emp-001', month: '2026-09', planType: 'none', note: 'Không ăn ca tại công ty' },
-  { id: 'meal-02', employeeId: 'emp-002', month: '2026-09', planType: 'cash', monthlyFlatAmount: 730000, note: 'Nhận phụ cấp ăn trưa tiền mặt' },
-  { id: 'meal-03', employeeId: 'emp-003', month: '2026-09', planType: 'cash', monthlyFlatAmount: 730000, note: 'Nhận tiền ăn vào tài khoản' },
+  { id: 'meal-02', employeeId: 'emp-002', month: '2026-09', planType: 'cash', monthlyFlatAmount: 1200000, note: 'Nhận phụ cấp ăn trưa tiền mặt (1.200.000 đ)' },
+  { id: 'meal-03', employeeId: 'emp-003', month: '2026-09', planType: 'cash', monthlyFlatAmount: 1200000, note: 'Nhận tiền ăn vào tài khoản (1.200.000 đ)' },
   { id: 'meal-04', employeeId: 'emp-004', month: '2026-09', planType: 'registered', customRatePerMeal: 35000, note: 'Đăng ký ăn trưa tại căng tin công ty' },
   { id: 'meal-05', employeeId: 'emp-005', month: '2026-09', planType: 'registered', customRatePerMeal: 35000, note: 'Đăng ký ăn trưa căng tin' },
-  { id: 'meal-06', employeeId: 'emp-006', month: '2026-09', planType: 'cash', monthlyFlatAmount: 730000, note: 'Nhận tiền mặt phụ cấp ăn ngoài' },
+  { id: 'meal-06', employeeId: 'emp-006', month: '2026-09', planType: 'cash', monthlyFlatAmount: 1200000, note: 'Nhận tiền mặt phụ cấp ăn ngoài (1.200.000 đ)' },
   { id: 'meal-07', employeeId: 'emp-007', month: '2026-09', planType: 'registered', customRatePerMeal: 35000, note: 'Ăn ca xưởng sản xuất' },
   { id: 'meal-08', employeeId: 'emp-008', month: '2026-09', planType: 'registered', customRatePerMeal: 35000, note: 'Ăn ca xưởng sản xuất' },
 ];

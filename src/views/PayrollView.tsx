@@ -23,7 +23,7 @@ import {
   PaymentStatus, 
   GoogleSyncState 
 } from '../types';
-import { formatVND } from '../utils/payrollCalculator';
+import { formatVND, isEmployeeActiveInMonth } from '../utils/payrollCalculator';
 import { exportPayrollToExcel } from '../utils/excelHelper';
 import { useAuthRole } from '../context/AuthRoleContext';
 
@@ -67,9 +67,12 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
     ? payrolls.filter(p => p.employeeId === selectedEmployeeIdForSelf)
     : payrolls.filter(p => {
         const emp = empMap.get(p.employeeId);
+        if (!emp || !isEmployeeActiveInMonth(emp, settings.currentMonth, settings.currentYear)) {
+          return false;
+        }
         const search = searchTerm.toLowerCase();
-        const matchSearch = (emp && (emp.fullName.toLowerCase().includes(search) || emp.employeeCode.toLowerCase().includes(search))) || false;
-        const matchDep = filterDepartment === 'all' || (emp && emp.departmentId === filterDepartment);
+        const matchSearch = emp.fullName.toLowerCase().includes(search) || emp.employeeCode.toLowerCase().includes(search);
+        const matchDep = filterDepartment === 'all' || emp.departmentId === filterDepartment;
         const matchStatus = filterStatus === 'all' || p.paymentStatus === filterStatus;
         return matchSearch && matchDep && matchStatus;
       });

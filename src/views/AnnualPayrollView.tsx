@@ -110,7 +110,10 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
           meal,
           empAllowances,
           empDependents,
-          monthSettings
+          monthSettings,
+          0,
+          0,
+          timekeepings
         );
 
         monthlyNet[m] = payroll.netSalary;

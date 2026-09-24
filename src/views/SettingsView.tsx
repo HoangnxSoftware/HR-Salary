@@ -712,8 +712,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
               )}
             </div>
 
-            {/* Giảm trừ gia cảnh */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {/* Giảm trừ gia cảnh & Định mức tiền ăn ca */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Giảm Trừ Bản Thân (VNĐ/tháng) *</label>
                 <input
@@ -724,7 +724,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                   onChange={e => setFormData({ ...formData, personalDeduction: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
-                <span className="text-[10px] text-slate-500 mt-0.5 block">Mức quy định hiện hành: 11,000,000 đ/tháng</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Mức quy định hiện hành: 15,500,000 đ/tháng</span>
               </div>
 
               <div>
@@ -737,7 +737,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                   onChange={e => setFormData({ ...formData, dependentDeduction: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
-                <span className="text-[10px] text-slate-500 mt-0.5 block">Mức quy định hiện hành: 4,400,000 đ/tháng/người</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Mức quy định hiện hành: 6,200,000 đ/tháng/người</span>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Định Mức Tiền Ăn Ca Miễn Thuế (VNĐ/tháng) *</label>
+                <input
+                  type="number"
+                  step={50000}
+                  disabled={!canEditSettings}
+                  value={formData.monthlyMealFlatRate ?? 1200000}
+                  onChange={e => {
+                    const newMealRate = Number(e.target.value);
+                    setFormData({
+                      ...formData,
+                      monthlyMealFlatRate: newMealRate,
+                      taxExemptionRules: {
+                        ...(formData.taxExemptionRules || DEFAULT_TAX_EXEMPTION_RULES),
+                        mealExemptMonthlyCap: newMealRate
+                      }
+                    });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                <span className="text-[10px] text-slate-500 mt-0.5 block">Mức quy định hiện hành: 1,200,000 đ/tháng</span>
               </div>
             </div>
 
@@ -750,7 +773,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                     Biểu Thuế Lũy Tiến Từng Phần (Thu nhập từ tiền lương, tiền công)
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    Đang áp dụng: <strong>{(formData.taxBrackets && formData.taxBrackets.length > 0) ? formData.taxBrackets.length : 7} bậc thuế</strong>
+                    Đang áp dụng: <strong>{(formData.taxBrackets && formData.taxBrackets.length > 0) ? formData.taxBrackets.length : 5} bậc thuế (Chuẩn hiện hành)</strong>
                   </span>
                 </div>
                 {canEditSettings && (
@@ -766,7 +789,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
               </div>
 
               {/* Grid of current brackets preview */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1 text-xs">
                 {((formData.taxBrackets && formData.taxBrackets.length > 0) ? formData.taxBrackets : DEFAULT_TAX_BRACKETS).map(b => (
                   <div key={b.bracket} className="bg-white p-2.5 rounded-lg border border-indigo-100 text-center shadow-2xs">
                     <div className="font-bold text-slate-800 text-[11px]">{b.name}</div>
@@ -787,10 +810,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 <div>
                   <span className="font-bold text-slate-900 block text-xs flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    Thiết Lập Thu Nhập Miễn Thuế TNCN (Tăng ca, Ăn ca tiền mặt, Trang phục, Điện thoại...)
+                    Thiết Lập Thu Nhập Miễn Thuế TNCN (Tăng ca trần 40h/tháng & 200h/năm, Ăn ca 1.200.000 đ...)
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    Tùy biến tiêu chí miễn thuế khi quy định pháp luật hoặc quy chế công ty thay đổi
+                    Khống chế mức trần OT 40h/tháng, 200h/năm; mức ăn ca 1.200.000 đ; trang phục, điện thoại, xăng xe
                   </span>
                 </div>
                 {canEditSettings && (
@@ -818,20 +841,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                         {exRules.otExemptMode === 'fully_taxable' && 'Tính thuế toàn bộ'}
                         {exRules.otExemptMode === 'custom_rate' && `Miễn ${exRules.otCustomExemptRate}%`}
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
-                        {exRules.otExemptMode === 'differential_only' ? 'Theo Thông tư 111/2013' : 'Quy định tùy biến'}
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        Trần: {exRules.otMonthlyHoursCap ?? 40}h/tháng & {exRules.otYearlyHoursCap ?? 200}h/năm. Vượt trần tính thuế 100%.
                       </div>
                     </div>
 
                     <div className="bg-white p-2.5 rounded-lg border border-emerald-100 shadow-2xs">
                       <div className="font-bold text-slate-700 text-[11px]">2. Ăn ca tiền mặt</div>
                       <div className="text-emerald-700 font-bold text-xs mt-0.5">
-                        {exRules.mealExemptMode === 'capped' && `Trần: ${formatVND(exRules.mealExemptMonthlyCap)}`}
+                        {exRules.mealExemptMode === 'capped' && `Trần: ${formatVND(exRules.mealExemptMonthlyCap || 1200000)}`}
                         {exRules.mealExemptMode === 'fully_exempt' && 'Miễn toàn bộ tiền mặt'}
                         {exRules.mealExemptMode === 'fully_taxable' && 'Tính thuế toàn bộ'}
                       </div>
                       <div className="text-[10px] text-slate-400 mt-0.5">
-                        {exRules.mealExemptMode === 'capped' ? 'Vượt trần sẽ tính thuế' : 'Theo quy chế'}
+                        {exRules.mealExemptMode === 'capped' ? 'Vượt 1.200.000 đ sẽ tính thuế' : 'Theo quy chế'}
                       </div>
                     </div>
 
