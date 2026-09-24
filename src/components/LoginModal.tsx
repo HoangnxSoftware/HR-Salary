@@ -55,7 +55,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onLoadDataFromSpreadsheet,
   onResetToDemoData
 }) => {
-  const { login } = useAuthRole();
+  const { login, isAuthenticated } = useAuthRole();
   const [activeTab, setActiveTab] = useState<'login' | 'google'>('login');
   
   // Credentials
@@ -342,6 +342,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <div className="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-7 shadow-2xl border border-slate-100 relative overflow-hidden my-auto max-h-[95vh] flex flex-col">
         {/* Top Decorative Line */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600" />
+
+        {/* Close button only when already authenticated */}
+        {isAuthenticated && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Đóng cửa sổ"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Company Header */}
         <div className="text-center mb-4 pt-1">

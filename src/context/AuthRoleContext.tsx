@@ -66,18 +66,8 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return INITIAL_USERS;
   });
 
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
-    try {
-      const saved = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.error('Failed to load current user', e);
-    }
-    // Mặc định đăng nhập với tài khoản Quản trị viên (Admin)
-    return INITIAL_USERS[0] || null;
-  });
+  // Khởi tạo currentUser = null để khi mở hoặc chạy phần mềm luôn hiện cửa sổ đăng nhập đầu tiên
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
   // Lưu danh sách người dùng vào localStorage khi thay đổi
   useEffect(() => {

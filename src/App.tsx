@@ -573,7 +573,11 @@ function PayrollAppContent() {
       {/* Login & Security Modals */}
       <LoginModal
         isOpen={!isAuthenticated || isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        onClose={() => {
+          if (isAuthenticated) {
+            setIsLoginModalOpen(false);
+          }
+        }}
         settings={settings}
         syncState={syncState}
         setSyncState={setSyncState}
