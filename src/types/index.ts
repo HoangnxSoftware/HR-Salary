@@ -92,6 +92,16 @@ export interface SystemSettings {
 
   // Thiết lập thu nhập miễn thuế / không được miễn thuế TNCN (Tăng ca, Ăn ca tiền mặt, Trang phục, Điện thoại...)
   taxExemptionRules?: TaxExemptionRules;
+
+  // Mẫu văn bản in ấn (Hợp đồng lao động, Bản cam kết thu nhập)
+  documentTemplates?: DocumentTemplatesConfig;
+}
+
+export interface DocumentTemplatesConfig {
+  contractTemplate?: string;
+  commitmentTemplate?: string;
+  defaultContractType?: string;
+  lastUpdated?: string;
 }
 
 export interface TaxExemptionRules {

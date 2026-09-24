@@ -369,6 +369,29 @@ export const initialEmployees: Employee[] = [
     bankAccount: '190255443322',
     bankName: 'Techcombank',
     taxId: '8944556677',
+  },
+  {
+    id: 'emp-013',
+    employeeCode: 'DEV-2041-B',
+    fullName: 'Hoàng Quốc Việt',
+    idCardNumber: '001099002041', // Trùng số CCCD với Vũ Hải Đăng (DEV-2041)
+    birthDate: '1998-04-18',
+    issueDate: '2023-08-10',
+    issuePlace: 'Cục Cảnh sát QLHC về TTXH',
+    address: 'Số 88 Cầu Giấy, P. Quan Hoa, Cầu Giấy, Hà Nội',
+    phoneNumber: '0973998822',
+    email: 'viet.hq@vietthanh.vn',
+    departmentId: 'dep-tech',
+    positionId: 'pos-dev',
+    workStatus: 'probation',
+    startDate: '2026-09-01',
+    probationStartDate: '2026-09-01',
+    probationEndDate: '2026-10-31',
+    salaryBasis: 'monthly',
+    baseSalary: 17500000,
+    bankAccount: '190366882211',
+    bankName: 'Techcombank - Chi nhánh Cầu Giấy',
+    taxId: '8955667788',
   }
 ];
 
