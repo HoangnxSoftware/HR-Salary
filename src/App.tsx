@@ -284,6 +284,10 @@ function PayrollAppContent() {
     setEmployees(prev => [...prev, ...newItems]);
   };
 
+  const handleUpdateEmployeeSalary = (employeeId: string, newSalary: number) => {
+    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, baseSalary: newSalary } : e));
+  };
+
   // Dependents CRUD
   const handleAddDependent = (dep: Dependent) => setDependents(prev => [...prev, dep]);
   const handleBatchAddDependents = (newDeps: Dependent[]) => setDependents(prev => [...prev, ...newDeps]);
@@ -469,6 +473,7 @@ function PayrollAppContent() {
               onEditEmployee={handleEditEmployeeClick}
               onDeleteEmployee={handleDeleteEmployee}
               onImportEmployees={handleImportEmployees}
+              onUpdateEmployeeSalary={handleUpdateEmployeeSalary}
             />
           )}
 

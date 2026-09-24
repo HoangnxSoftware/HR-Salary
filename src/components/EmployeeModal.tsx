@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Save, Sparkles, Building, Briefcase, CreditCard, DollarSign } from 'lucide-react';
 import { Employee, Department, Position, SalaryCalculationBasis, WorkStatus } from '../types';
 import { generateEmployeeCode } from '../data/initialData';
+import { formatVND } from '../utils/payrollCalculator';
 
 interface EmployeeModalProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   });
 
   const [autoCodeRule, setAutoCodeRule] = useState<boolean>(true);
+  const [salaryInputStr, setSalaryInputStr] = useState<string>('10.000.000');
 
   useEffect(() => {
     if (employeeToEdit) {
@@ -51,6 +53,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         ...employeeToEdit,
         hourlyRate: employeeToEdit.hourlyRate || (employeeToEdit.salaryBasis === 'hourly' ? 50000 : 0)
       });
+      setSalaryInputStr(new Intl.NumberFormat('vi-VN').format(employeeToEdit.baseSalary || 0));
       setAutoCodeRule(false);
     } else {
       const defaultDep = departments[0]?.id || '';
@@ -78,9 +81,24 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         bankName: 'Vietcombank',
         taxId: ''
       });
+      setSalaryInputStr('10.000.000');
       setAutoCodeRule(true);
     }
   }, [employeeToEdit, isOpen, departments, positions]);
+
+  // Cho phép nhập lương đến hàng đơn vị (vd: 525.454 hoặc 525454)
+  const handleSalaryInputChange = (val: string) => {
+    setSalaryInputStr(val);
+    const digitsOnly = val.replace(/[^\d]/g, '');
+    const num = digitsOnly ? parseInt(digitsOnly, 10) : 0;
+    setFormData(prev => ({ ...prev, baseSalary: num }));
+  };
+
+  const handleSalaryInputBlur = () => {
+    if (formData.baseSalary !== undefined && formData.baseSalary !== null) {
+      setSalaryInputStr(new Intl.NumberFormat('vi-VN').format(formData.baseSalary));
+    }
+  };
 
 
   // Tự động sinh mã nhân viên khi thay đổi chức vụ hoặc CCCD nếu bật autoCodeRule
@@ -367,15 +385,24 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {formData.salaryBasis === 'hourly' ? 'Mức Lương Tham Chiếu / HĐ (VNĐ)' : 'Lương Cơ Bản / HĐ (VNĐ) *'}
                 </label>
-                <input
-                  type="number"
-                  required
-                  min={0}
-                  step={100000}
-                  value={formData.baseSalary}
-                  onChange={e => setFormData({ ...formData, baseSalary: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-semibold"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="VD: 525.454 hoặc 10.000.000"
+                    value={salaryInputStr}
+                    onChange={e => handleSalaryInputChange(e.target.value)}
+                    onBlur={handleSalaryInputBlur}
+                    className="w-full px-3 py-2 pr-8 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-slate-900"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">₫</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[11px] leading-tight">
+                  <span className="text-slate-500">
+                    Quy đổi: <strong className="text-emerald-700 font-mono">{formatVND(formData.baseSalary)}</strong>
+                  </span>
+                  <span className="text-slate-400 text-[10px]">Đến hàng đơn vị (vd: 525.454)</span>
+                </div>
               </div>
 
               {formData.salaryBasis === 'hourly' && (
@@ -384,7 +411,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   <input
                     type="number"
                     min={0}
-                    step={5000}
+                    step={1}
                     placeholder="Ví dụ: 50000"
                     value={formData.hourlyRate || ''}
                     onChange={e => setFormData({ ...formData, hourlyRate: Number(e.target.value) })}
