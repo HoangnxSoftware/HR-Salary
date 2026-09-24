@@ -13,7 +13,8 @@ import {
   Cloud,
   X,
   UserCog,
-  LogOut
+  LogOut,
+  TrendingUp
 } from 'lucide-react';
 import { useAuthRole } from '../context/AuthRoleContext';
 
@@ -61,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navItems = [
       { id: 'dashboard', label: 'Tổng Quan Bảng Lương', icon: LayoutDashboard },
       canViewPayroll ? { id: 'payroll', label: 'Bảng Thanh Toán Lương', icon: FileSpreadsheet } : null,
+      canViewPayroll ? { id: 'annual_payroll', label: 'Báo Cáo Lương Cả Năm', icon: TrendingUp } : null,
       canViewTimekeeping ? { id: 'timekeeping', label: 'Bảng Chấm Công & OT', icon: CalendarCheck } : null,
       canViewEmployees ? { id: 'employees', label: 'Danh Sách Người Lao Động', icon: Users } : null,
       canViewInsurance ? { id: 'insurance', label: 'Bảo Hiểm Xã Hội (BHXH)', icon: ShieldCheck } : null,

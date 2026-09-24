@@ -32,7 +32,7 @@ import {
   WorkShift 
 } from '../types';
 import { exportTimekeepingToExcel } from '../utils/excelHelper';
-import { recalculateTimekeepingSummary } from '../utils/payrollCalculator';
+import { recalculateTimekeepingSummary, isEmployeeActiveInMonth } from '../utils/payrollCalculator';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { PrintTimekeepingModal } from '../components/PrintTimekeepingModal';
 import { 
@@ -114,6 +114,11 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
 
   // Filter employees
   const filteredEmployees = employees.filter(e => {
+    // 0. Loại bỏ người lao động đã nghỉ việc, điều chuyển, thai sản ở các tháng không liên quan
+    if (!isEmployeeActiveInMonth(e, month, year)) {
+      return false;
+    }
+
     const search = searchTerm.toLowerCase();
     const matchSearch = e.fullName.toLowerCase().includes(search) || e.employeeCode.toLowerCase().includes(search);
     const matchDep = filterDepartment === 'all' || e.departmentId === filterDepartment;

@@ -669,3 +669,149 @@ export const formatNumber = (num: number | undefined | null): string => {
   if (num === undefined || num === null || isNaN(num)) return '0';
   return new Intl.NumberFormat('vi-VN').format(num);
 };
+
+/**
+ * Kiểm tra xem người lao động có làm việc và phát sinh công/lương trong tháng cụ thể hay không.
+ * Nếu đã nghỉ việc, điều chuyển công tác, nghỉ thai sản sẽ không hiện thông tin các tháng không liên quan.
+ * @param employee Hồ sơ nhân viên
+ * @param month Tháng (1 - 12)
+ * @param year Năm (vd: 2026)
+ */
+export const isEmployeeActiveInMonth = (
+  employee: Employee,
+  month: number,
+  year: number
+): boolean => {
+  const targetMonthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+  // 1. Ngày vào làm: nếu chưa vào làm trong tháng này thì không hiển thị
+  if (employee.startDate) {
+    const startMonthStr = employee.startDate.slice(0, 7);
+    if (targetMonthStr < startMonthStr) {
+      return false;
+    }
+  }
+
+  // 2. Trạng thái Thử việc
+  if (employee.workStatus === 'probation') {
+    if (employee.probationStartDate) {
+      const probStartMonth = employee.probationStartDate.slice(0, 7);
+      if (targetMonthStr < probStartMonth) {
+        return false;
+      }
+    }
+  }
+
+  // 3. Trạng thái Đã nghỉ việc
+  // Tháng nghỉ việc vẫn tính công/lương đến ngày nghỉ; các tháng sau khi nghỉ việc KHÔNG hiển thị
+  if (employee.workStatus === 'resigned') {
+    if (employee.resignationDate) {
+      const resMonth = employee.resignationDate.slice(0, 7);
+      if (targetMonthStr > resMonth) {
+        return false;
+      }
+    } else {
+      // Nếu trạng thái đã là resigned nhưng chưa nhập ngày, mặc định không hiển thị
+      return false;
+    }
+  }
+
+  // 4. Trạng thái Nghỉ thai sản
+  // Không hiện thông tin người lao động trong các tháng nằm trong thời gian nghỉ thai sản (hưởng BHXH, không hưởng lương cty)
+  if (employee.workStatus === 'maternity') {
+    if (employee.maternityStartDate) {
+      const matStartMonth = employee.maternityStartDate.slice(0, 7);
+      const matEndMonth = employee.maternityEndDate ? employee.maternityEndDate.slice(0, 7) : '9999-12';
+      if (targetMonthStr >= matStartMonth && targetMonthStr <= matEndMonth) {
+        return false;
+      }
+    }
+  }
+
+  // 5. Trạng thái Điều chuyển công tác
+  // Không hiện thông tin người lao động trong các tháng nằm trong thời gian điều chuyển công tác đi đơn vị khác
+  if (employee.workStatus === 'transferred') {
+    if (employee.transferStartDate) {
+      const transStartMonth = employee.transferStartDate.slice(0, 7);
+      const transEndMonth = employee.transferEndDate ? employee.transferEndDate.slice(0, 7) : '9999-12';
+      if (targetMonthStr >= transStartMonth && targetMonthStr <= transEndMonth) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Trả về nhãn trạng thái và thông tin chi tiết thời gian đi kèm
+ */
+export const getEmployeeWorkStatusDetails = (employee: Employee): {
+  label: string;
+  details: string;
+  colorClass: string;
+} => {
+  switch (employee.workStatus) {
+    case 'probation': {
+      let details = '';
+      if (employee.probationStartDate && employee.probationEndDate) {
+        details = `${employee.probationStartDate} đến ${employee.probationEndDate}`;
+      } else if (employee.probationStartDate) {
+        details = `Từ ${employee.probationStartDate}`;
+      }
+      return {
+        label: 'Thử việc',
+        details: details ? `(${details})` : '',
+        colorClass: 'bg-amber-100 text-amber-800 border-amber-300'
+      };
+    }
+    case 'resigned': {
+      let details = '';
+      if (employee.resignationDate) {
+        details = `Nghỉ ngày: ${employee.resignationDate}`;
+      }
+      return {
+        label: 'Đã nghỉ việc',
+        details: details ? `(${details})` : '',
+        colorClass: 'bg-rose-100 text-rose-800 border-rose-300'
+      };
+    }
+    case 'maternity': {
+      let details = '';
+      if (employee.maternityStartDate && employee.maternityEndDate) {
+        details = `${employee.maternityStartDate} đến ${employee.maternityEndDate}`;
+      } else if (employee.maternityStartDate) {
+        details = `Từ ${employee.maternityStartDate}`;
+      }
+      return {
+        label: 'Nghỉ thai sản',
+        details: details ? `(${details})` : '',
+        colorClass: 'bg-purple-100 text-purple-800 border-purple-300'
+      };
+    }
+    case 'transferred': {
+      let details = '';
+      if (employee.transferStartDate && employee.transferEndDate) {
+        details = `${employee.transferStartDate} đến ${employee.transferEndDate}`;
+      } else if (employee.transferStartDate) {
+        details = `Từ ${employee.transferStartDate}`;
+      }
+      if (employee.transferLocation) {
+        details = details ? `${details} - Đến: ${employee.transferLocation}` : `Đến: ${employee.transferLocation}`;
+      }
+      return {
+        label: 'Điều chuyển',
+        details: details ? `(${details})` : '',
+        colorClass: 'bg-blue-100 text-blue-800 border-blue-300'
+      };
+    }
+    case 'active':
+    default:
+      return {
+        label: 'Chính thức',
+        details: '',
+        colorClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
+      };
+  }
+};
+

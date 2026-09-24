@@ -20,7 +20,7 @@ import {
   GoogleSyncState,
   PaymentStatus 
 } from './types';
-import { calculateEmployeePayroll } from './utils/payrollCalculator';
+import { calculateEmployeePayroll, isEmployeeActiveInMonth } from './utils/payrollCalculator';
 import { FullPayrollData, importFullDataFromGoogleSheets } from './services/googleSheetsService';
 import { getCurrentUser } from './services/authService';
 
@@ -41,6 +41,7 @@ import { MealView } from './views/MealView';
 import { AllowancesView } from './views/AllowancesView';
 import { TimekeepingView } from './views/TimekeepingView';
 import { PayrollView } from './views/PayrollView';
+import { AnnualPayrollView } from './views/AnnualPayrollView';
 import { TaxReportView } from './views/TaxReportView';
 import { UserManagementView } from './views/UserManagementView';
 import { MyPayslipView } from './views/MyPayslipView';
@@ -140,7 +141,13 @@ function PayrollAppContent() {
 
   // Automatic Dynamic Payroll Calculation Engine
   const payrolls: PayrollRecord[] = useMemo(() => {
-    return employees.map(emp => {
+    // Chỉ tính lương cho những nhân viên đang hoạt động trong tháng này
+    // (nhân viên đã nghỉ việc, thai sản, điều chuyển sẽ không hiển thị ở các tháng không liên quan)
+    const activeEmployees = employees.filter(emp =>
+      isEmployeeActiveInMonth(emp, settings.currentMonth, settings.currentYear)
+    );
+
+    return activeEmployees.map(emp => {
       const tk = timekeepings.find(t => t.employeeId === emp.id);
       const ins = insurances.find(i => i.employeeId === emp.id);
       const meal = mealRegistrations.find(m => m.employeeId === emp.id);
@@ -489,6 +496,19 @@ function PayrollAppContent() {
               onPrintSlip={handleOpenPrintSlip}
               onUpdatePayrollStatus={handleUpdatePayrollStatus}
               onUpdateAdvancePayment={handleUpdateAdvancePayment}
+              onNavigateToAnnual={() => setActiveTab('annual_payroll')}
+            />
+          )}
+
+          {activeTab === 'annual_payroll' && (
+            <AnnualPayrollView
+              employees={employees}
+              timekeepings={timekeepings}
+              insurances={insurances}
+              mealRegistrations={mealRegistrations}
+              specialAllowances={specialAllowances}
+              dependents={dependents}
+              settings={settings}
             />
           )}
 

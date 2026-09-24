@@ -1,7 +1,7 @@
 import React from 'react';
 import { Printer, X, Users } from 'lucide-react';
 import { Employee, Department, Position, SystemSettings } from '../types';
-import { formatVND } from '../utils/payrollCalculator';
+import { formatVND, getEmployeeWorkStatusDetails } from '../utils/payrollCalculator';
 
 interface PrintEmployeesModalProps {
   isOpen: boolean;
@@ -205,12 +205,22 @@ export const PrintEmployeesModal: React.FC<PrintEmployeesModalProps> = ({
                       <td className="border border-slate-400 p-1 text-left font-mono text-[9px]">
                         {emp.bankAccount ? `${emp.bankAccount} (${emp.bankName || ''})` : '-'}
                       </td>
-                      <td className="border border-slate-400 p-1">
-                        <span className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold ${
-                          emp.workStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {getStatusLabel(emp.workStatus)}
-                        </span>
+                      <td className="border border-slate-400 p-1 text-center">
+                        {(() => {
+                          const statusInfo = getEmployeeWorkStatusDetails(emp);
+                          return (
+                            <div>
+                              <div className="font-bold text-[9px] text-slate-800">
+                                {statusInfo.label}
+                              </div>
+                              {statusInfo.details && (
+                                <div className="text-[8px] text-slate-600 font-mono">
+                                  {statusInfo.details}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}

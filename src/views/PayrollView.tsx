@@ -13,7 +13,8 @@ import {
   Utensils, 
   Cloud,
   ChevronRight,
-  User
+  User,
+  TrendingUp
 } from 'lucide-react';
 import { 
   PayrollRecord, 
@@ -36,6 +37,7 @@ interface PayrollViewProps {
   onPrintSlip: (employeeId?: string) => void;
   onUpdatePayrollStatus: (payrollId: string, status: PaymentStatus) => void;
   onUpdateAdvancePayment: (payrollId: string, amount: number) => void;
+  onNavigateToAnnual?: () => void;
 }
 
 export const PayrollView: React.FC<PayrollViewProps> = ({
@@ -47,7 +49,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
   onPrintPayroll,
   onPrintSlip,
   onUpdatePayrollStatus,
-  onUpdateAdvancePayment
+  onUpdateAdvancePayment,
+  onNavigateToAnnual
 }) => {
   const { canApprovePayroll, canExportData, currentUserRole, selectedEmployeeIdForSelf } = useAuthRole();
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,6 +139,17 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
             <FileSpreadsheet className="w-4 h-4" />
             <span>In Bảng Lương (A4)</span>
           </button>
+
+          {onNavigateToAnnual && (
+            <button
+              onClick={onNavigateToAnnual}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              title="Xem Báo Cáo Lương Toàn Bộ Lao Động Cả Năm"
+            >
+              <TrendingUp className="w-4 h-4 text-indigo-600" />
+              <span>Báo Cáo Năm</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Printer, X, CalendarCheck, Info } from 'lucide-react';
 import { Employee, TimekeepingRecord, SystemSettings } from '../types';
+import { isEmployeeActiveInMonth } from '../utils/payrollCalculator';
 
 interface PrintTimekeepingModalProps {
   isOpen: boolean;
@@ -41,6 +42,10 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
     return settings.holidays.some(h => h.date === dateStr);
   };
 
+  // Chỉ in danh sách người lao động đang làm việc trong tháng
+  const activeEmployees = employees.filter(e => isEmployeeActiveInMonth(e, month, year));
+  const activeEmpIds = new Set(activeEmployees.map(e => e.id));
+
   // Summaries
   let grandTotalWorkDays = 0;
   let grandTotalPaidLeave = 0;
@@ -51,7 +56,7 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
   let grandTotalOtHoliday = 0;
   let grandTotalMeals = 0;
 
-  timekeepings.forEach(t => {
+  timekeepings.filter(t => activeEmpIds.has(t.employeeId)).forEach(t => {
     grandTotalWorkDays += t.actualWorkDays || 0;
     grandTotalPaidLeave += t.paidLeaveDays || 0;
     grandTotalHolidayDays += t.holidayDays || 0;
@@ -206,7 +211,7 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((emp, idx) => {
+                  {activeEmployees.map((emp, idx) => {
                     const tk = tkMap.get(emp.id);
                     return (
                       <tr key={emp.id} className="hover:bg-slate-50">

@@ -144,6 +144,16 @@ export interface Employee {
   workStatus: WorkStatus; // Đang làm, đã nghỉ, điều chuyển...
   startDate: string; // Ngày vào làm
   
+  // Chi tiết thời gian theo trạng thái công việc
+  probationStartDate?: string; // Thời gian bắt đầu thử việc (YYYY-MM-DD)
+  probationEndDate?: string;   // Thời gian kết thúc thử việc (YYYY-MM-DD)
+  resignationDate?: string;    // Ngày chính thức nghỉ việc (YYYY-MM-DD)
+  maternityStartDate?: string; // Bắt đầu nghỉ thai sản (YYYY-MM-DD)
+  maternityEndDate?: string;   // Kết thúc nghỉ thai sản (YYYY-MM-DD)
+  transferStartDate?: string;  // Bắt đầu điều chuyển công tác (YYYY-MM-DD)
+  transferEndDate?: string;    // Kết thúc điều chuyển công tác (YYYY-MM-DD)
+  transferLocation?: string;   // Đơn vị / Phòng ban điều chuyển đến
+  
   // Thông tin lương & thanh toán
   salaryBasis: SalaryCalculationBasis; // Lương tháng, ngày công, lương theo giờ, lương theo %, bộ phận
   baseSalary: number; // Lương cơ bản / thỏa thuận (VNĐ) hoặc Đơn giá lương/tháng

@@ -35,6 +35,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     employeeCode: '',
     workStatus: 'active',
     startDate: new Date().toISOString().slice(0, 10),
+    probationStartDate: '',
+    probationEndDate: '',
+    resignationDate: '',
+    maternityStartDate: '',
+    maternityEndDate: '',
+    transferStartDate: '',
+    transferEndDate: '',
+    transferLocation: '',
     salaryBasis: 'monthly',
     baseSalary: 10000000,
     hourlyRate: 50000,
@@ -73,6 +81,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         employeeCode: '',
         workStatus: 'active',
         startDate: new Date().toISOString().slice(0, 10),
+        probationStartDate: '',
+        probationEndDate: '',
+        resignationDate: '',
+        maternityStartDate: '',
+        maternityEndDate: '',
+        transferStartDate: '',
+        transferEndDate: '',
+        transferLocation: '',
         salaryBasis: 'monthly',
         baseSalary: 10000000,
         hourlyRate: 50000,
@@ -357,6 +373,127 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 />
               </div>
             </div>
+
+            {/* Chi tiết thời gian theo trạng thái */}
+            {formData.workStatus === 'probation' && (
+              <div className="mt-3 p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <span>⏱️ Thiết lập thời gian thử việc</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Thử việc từ ngày *</label>
+                    <input
+                      type="date"
+                      value={formData.probationStartDate || ''}
+                      onChange={e => setFormData({ ...formData, probationStartDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Đến ngày *</label>
+                    <input
+                      type="date"
+                      value={formData.probationEndDate || ''}
+                      onChange={e => setFormData({ ...formData, probationEndDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formData.workStatus === 'resigned' && (
+              <div className="mt-3 p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                  <span>🚪 Thời điểm thôi việc / chấm dứt HĐLĐ</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ngày chính thức nghỉ việc *</label>
+                  <input
+                    type="date"
+                    value={formData.resignationDate || ''}
+                    onChange={e => setFormData({ ...formData, resignationDate: e.target.value })}
+                    className="w-full md:w-1/2 px-3 py-1.5 bg-white border border-rose-300 rounded-lg text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1 italic">
+                    * Nhân viên sẽ không hiển thị trên bảng chấm công & bảng lương ở các tháng sau thời điểm này.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {formData.workStatus === 'maternity' && (
+              <div className="mt-3 p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                  <span>🤱 Thời gian nghỉ thai sản (Hưởng chế độ BHXH)</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Nghỉ thai sản từ ngày *</label>
+                    <input
+                      type="date"
+                      value={formData.maternityStartDate || ''}
+                      onChange={e => setFormData({ ...formData, maternityStartDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Đến ngày *</label>
+                    <input
+                      type="date"
+                      value={formData.maternityEndDate || ''}
+                      onChange={e => setFormData({ ...formData, maternityEndDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 italic">
+                  * Trong các tháng nghỉ thai sản, nhân viên không phát sinh lương tại doanh nghiệp và không xuất hiện trên bảng công/lương.
+                </p>
+              </div>
+            )}
+
+            {formData.workStatus === 'transferred' && (
+              <div className="mt-3 p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                  <span>🏢 Thông tin điều chuyển công tác</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Điều chuyển từ ngày *</label>
+                    <input
+                      type="date"
+                      value={formData.transferStartDate || ''}
+                      onChange={e => setFormData({ ...formData, transferStartDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-blue-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Đến ngày</label>
+                    <input
+                      type="date"
+                      value={formData.transferEndDate || ''}
+                      onChange={e => setFormData({ ...formData, transferEndDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-blue-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Đơn vị / Chi nhánh đến</label>
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: Chi nhánh Đà Nẵng"
+                      value={formData.transferLocation || ''}
+                      onChange={e => setFormData({ ...formData, transferLocation: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-blue-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 italic">
+                  * Không hiện thông tin người lao động trên bảng chấm công & bảng lương ở các tháng trong thời gian điều chuyển.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 3. Lương & Thanh toán */}

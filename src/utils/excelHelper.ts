@@ -563,3 +563,58 @@ export const readAllowanceExcel = async (
     reader.readAsArrayBuffer(file);
   });
 };
+
+/**
+ * Xuất Báo cáo lương cả năm (12 tháng) ra file Excel
+ */
+export const exportAnnualPayrollToExcel = (
+  annualData: {
+    employee: Employee;
+    departmentName: string;
+    positionName: string;
+    statusLabel: string;
+    monthlyNet: { [month: number]: number };
+    totalBaseSalaryYear: number;
+    totalGrossYear: number;
+    totalOtYear: number;
+    totalInsuranceEmpYear: number;
+    totalTaxYear: number;
+    totalNetYear: number;
+    avgMonthlyNet: number;
+  }[],
+  year: number,
+  companyName: string
+) => {
+  const excelRows = annualData.map((row, idx) => ({
+    'STT': idx + 1,
+    'Mã Nhân Viên': row.employee.employeeCode,
+    'Họ và Tên': row.employee.fullName,
+    'Phòng Ban': row.departmentName,
+    'Chức Vụ': row.positionName,
+    'Trạng Thái': row.statusLabel,
+    'Tháng 1': row.monthlyNet[1] || 0,
+    'Tháng 2': row.monthlyNet[2] || 0,
+    'Tháng 3': row.monthlyNet[3] || 0,
+    'Tháng 4': row.monthlyNet[4] || 0,
+    'Tháng 5': row.monthlyNet[5] || 0,
+    'Tháng 6': row.monthlyNet[6] || 0,
+    'Tháng 7': row.monthlyNet[7] || 0,
+    'Tháng 8': row.monthlyNet[8] || 0,
+    'Tháng 9': row.monthlyNet[9] || 0,
+    'Tháng 10': row.monthlyNet[10] || 0,
+    'Tháng 11': row.monthlyNet[11] || 0,
+    'Tháng 12': row.monthlyNet[12] || 0,
+    'Tổng Lương CB Cả Năm': row.totalBaseSalaryYear,
+    'Tổng Gross Cả Năm': row.totalGrossYear,
+    'Tổng Tiền Làm Thêm (OT)': row.totalOtYear,
+    'Tổng BHXH Trừ Lương': row.totalInsuranceEmpYear,
+    'Tổng Thuế TNCN Đã Khấu Trừ': row.totalTaxYear,
+    'Tổng Thực Lĩnh Cả Năm (Net)': row.totalNetYear,
+    'Bình Quân / Tháng': Math.round(row.avgMonthlyNet)
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelRows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, `BaoCaoLuong_${year}`);
+  XLSX.writeFile(workbook, `Bao_Cao_Luong_Ca_Nam_${year}_${companyName.replace(/\s+/g, '_').slice(0, 20)}.xlsx`);
+};

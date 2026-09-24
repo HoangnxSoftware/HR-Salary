@@ -19,7 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { Employee, Department, Position, SystemSettings } from '../types';
-import { formatVND } from '../utils/payrollCalculator';
+import { formatVND, getEmployeeWorkStatusDetails } from '../utils/payrollCalculator';
 import { exportEmployeesToExcel, downloadEmployeeTemplate, readEmployeeExcel } from '../utils/excelHelper';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { PrintEmployeesModal } from '../components/PrintEmployeesModal';
@@ -310,17 +310,21 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                       <div className="text-slate-500 text-[11px]">{posMap.get(emp.positionId) || '-'}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
-                        emp.workStatus === 'active' ? 'bg-emerald-100 text-emerald-800' :
-                        emp.workStatus === 'probation' ? 'bg-blue-100 text-blue-800' :
-                        emp.workStatus === 'resigned' ? 'bg-red-100 text-red-800' :
-                        emp.workStatus === 'transferred' ? 'bg-amber-100 text-amber-800' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {emp.workStatus === 'active' ? 'Đang làm việc' :
-                         emp.workStatus === 'probation' ? 'Thử việc' :
-                         emp.workStatus === 'resigned' ? 'Đã nghỉ việc' :
-                         emp.workStatus === 'transferred' ? 'Điều chuyển' : 'Nghỉ thai sản'}
-                      </span>
+                      {(() => {
+                        const statusInfo = getEmployeeWorkStatusDetails(emp);
+                        return (
+                          <div>
+                            <span className={`inline-block px-2 py-0.5 rounded-full font-bold text-[10px] uppercase border ${statusInfo.colorClass}`}>
+                              {statusInfo.label}
+                            </span>
+                            {statusInfo.details && (
+                              <div className="text-[10px] text-slate-600 font-mono mt-0.5">
+                                {statusInfo.details}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="font-medium text-slate-700">
