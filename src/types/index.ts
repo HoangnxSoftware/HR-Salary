@@ -413,6 +413,7 @@ export interface GoogleSyncState {
   isConnected: boolean;
   userEmail: string | null;
   spreadsheetId: string | null;
+  spreadsheetName?: string | null;
   spreadsheetUrl: string | null;
   lastSyncTime: string | null;
   isSyncing: boolean;

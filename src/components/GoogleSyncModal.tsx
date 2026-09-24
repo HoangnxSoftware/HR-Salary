@@ -90,6 +90,7 @@ export const GoogleSyncModal: React.FC<GoogleSyncModalProps> = ({
       setSyncState(prev => ({
         ...prev,
         spreadsheetId: sheet.id,
+        spreadsheetName: title,
         spreadsheetUrl: sheet.url,
         syncMessage: `Đã kết nối Spreadsheet: ${title}`
       }));

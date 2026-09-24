@@ -115,11 +115,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                   : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
               }`}
-              title={syncState.isConnected ? `Google Sheets: ${syncState.userEmail}` : 'Kết nối Google Sheets'}
+              title={
+                syncState.isConnected 
+                  ? `Google Sheets: ${syncState.spreadsheetName || syncState.userEmail}` 
+                  : 'Kết nối Google Sheets'
+              }
             >
               <Cloud className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">
-                {syncState.isConnected ? 'Google Sheets' : 'Lưu Google Drive'}
+              <span className="hidden md:inline max-w-[140px] truncate">
+                {syncState.isConnected ? (syncState.spreadsheetName || 'Google Sheets') : 'Lưu Google Drive'}
               </span>
               <span className={`w-2 h-2 rounded-full ${syncState.isConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </button>

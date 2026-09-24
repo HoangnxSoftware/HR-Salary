@@ -21,7 +21,7 @@ import {
   PaymentStatus 
 } from './types';
 import { calculateEmployeePayroll } from './utils/payrollCalculator';
-import { FullPayrollData } from './services/googleSheetsService';
+import { FullPayrollData, importFullDataFromGoogleSheets } from './services/googleSheetsService';
 import { getCurrentUser } from './services/authService';
 
 import { AuthRoleProvider, useAuthRole } from './context/AuthRoleContext';
@@ -148,6 +148,80 @@ function PayrollAppContent() {
     if (imported.insurances) setInsurances(imported.insurances);
     if (imported.mealRegistrations) setMealRegistrations(imported.mealRegistrations);
     if (imported.specialAllowances) setSpecialAllowances(imported.specialAllowances);
+  };
+
+  // Handler: Apply new company clean blank database
+  const handleApplyNewCompanyData = (
+    newData: FullPayrollData,
+    spreadsheetInfo?: { id: string; url: string; title: string }
+  ) => {
+    setSettings(newData.settings);
+    setEmployees(newData.employees);
+    setDependents(newData.dependents);
+    setInsurances(newData.insurances);
+    setMealRegistrations(newData.mealRegistrations);
+    setSpecialAllowances(newData.specialAllowances);
+    setTimekeepings(newData.timekeepings);
+
+    if (spreadsheetInfo) {
+      setSyncState(prev => ({
+        ...prev,
+        isConnected: true,
+        spreadsheetId: spreadsheetInfo.id,
+        spreadsheetName: spreadsheetInfo.title,
+        spreadsheetUrl: spreadsheetInfo.url,
+        syncMessage: `Đang kết nối: ${spreadsheetInfo.title}`
+      }));
+    }
+  };
+
+  // Handler: Load data from Google Spreadsheet
+  const handleLoadDataFromSpreadsheet = async (
+    spreadsheetId: string,
+    spreadsheetName?: string
+  ): Promise<boolean> => {
+    try {
+      const fullData = await importFullDataFromGoogleSheets(spreadsheetId);
+      if (fullData) {
+        if (fullData.settings) {
+          setSettings(prev => ({ ...prev, ...fullData.settings }));
+        }
+        if (fullData.employees) {
+          setEmployees(fullData.employees);
+        }
+        setSyncState(prev => ({
+          ...prev,
+          isConnected: true,
+          spreadsheetId,
+          spreadsheetName: spreadsheetName || fullData.settings?.companyName || prev.spreadsheetName,
+          spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+          syncMessage: `Đã kết nối dữ liệu Google Sheets: ${spreadsheetName || spreadsheetId}`
+        }));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Lỗi khi nạp dữ liệu từ Google Sheets:', err);
+      throw err;
+    }
+  };
+
+  // Handler: Reset to local demo data
+  const handleResetToDemoData = () => {
+    setSettings(INITIAL_SETTINGS);
+    setEmployees(INITIAL_EMPLOYEES);
+    setDependents(INITIAL_DEPENDENTS);
+    setInsurances(INITIAL_INSURANCES);
+    setMealRegistrations(INITIAL_MEAL_REGISTRATIONS);
+    setSpecialAllowances(INITIAL_SPECIAL_ALLOWANCES);
+    setTimekeepings(INITIAL_TIMEKEEPINGS);
+    setSyncState(prev => ({
+      ...prev,
+      spreadsheetId: null,
+      spreadsheetName: null,
+      spreadsheetUrl: null,
+      syncMessage: 'Đang dùng dữ liệu mẫu nội bộ.'
+    }));
   };
 
   // Employee CRUD
@@ -501,6 +575,11 @@ function PayrollAppContent() {
         isOpen={!isAuthenticated || isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         settings={settings}
+        syncState={syncState}
+        setSyncState={setSyncState}
+        onApplyNewCompanyData={handleApplyNewCompanyData}
+        onLoadDataFromSpreadsheet={handleLoadDataFromSpreadsheet}
+        onResetToDemoData={handleResetToDemoData}
       />
 
       <ChangePasswordModal

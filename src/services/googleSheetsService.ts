@@ -1,4 +1,5 @@
 import { getAccessToken } from './authService';
+import { initialSettings } from '../data/initialData';
 import {
   SystemSettings,
   Employee,
@@ -19,6 +20,24 @@ export interface FullPayrollData {
   specialAllowances: SpecialAllowance[];
   timekeepings: TimekeepingRecord[];
   payrolls: PayrollRecord[];
+}
+
+export interface DriveSpreadsheetItem {
+  id: string;
+  name: string;
+  webViewLink?: string;
+  modifiedTime?: string;
+}
+
+export interface NewCompanyInput {
+  companyName: string;
+  taxCode?: string;
+  directorName?: string;
+  chiefAccountantName?: string;
+  address?: string;
+  phoneNumber?: string;
+  currentYear?: number;
+  currentMonth?: number;
 }
 
 const SHEET_NAMES = [
@@ -538,51 +557,273 @@ export const exportDataToGoogleSheets = async (
 };
 
 /**
- * Đọc dữ liệu từ Google Sheets về ứng dụng
+ * Khởi tạo cấu trúc dữ liệu rỗng cho một công ty mới
+ * Dữ liệu trống hoàn toàn (0 nhân viên, 0 chấm công, 0 bảng lương)
+ * khi người dùng đăng nhập sẽ bắt đầu nhập dữ liệu mới trong phần mềm
  */
-export const importDataFromGoogleSheets = async (
+export const createEmptyCompanyData = (newCompany: NewCompanyInput): FullPayrollData => {
+  const currentYear = newCompany.currentYear || new Date().getFullYear();
+  const currentMonth = newCompany.currentMonth || (new Date().getMonth() + 1);
+
+  const cleanSettings: SystemSettings = {
+    ...initialSettings,
+    companyName: newCompany.companyName,
+    taxCode: newCompany.taxCode || '',
+    directorName: newCompany.directorName || '',
+    chiefAccountantName: newCompany.chiefAccountantName || '',
+    reportPreparerName: '',
+    address: newCompany.address || '',
+    phoneNumber: newCompany.phoneNumber || '',
+    currentYear,
+    currentMonth,
+    standardWorkDays: 24,
+    departments: [
+      { id: 'dep-bgd', code: 'BGD', name: 'Ban Giám Đốc' },
+      { id: 'dep-kt', code: 'PKT', name: 'Phòng Kế Toán - Tài Chính' },
+      { id: 'dep-ns', code: 'PNS', name: 'Phòng Nhân Sự' },
+      { id: 'dep-kd', code: 'PKD', name: 'Phòng Kinh Doanh' },
+      { id: 'dep-sx', code: 'PSX', name: 'Bộ Phận Vận Hành / Sản Xuất' }
+    ],
+    positions: [
+      { id: 'pos-gd', code: 'GD', name: 'Giám Đốc', responsibilityAllowance: 0 },
+      { id: 'pos-ktt', code: 'KTT', name: 'Kế Toán Trưởng', responsibilityAllowance: 0 },
+      { id: 'pos-tp', code: 'TP', name: 'Trưởng Phòng', responsibilityAllowance: 0 },
+      { id: 'pos-nv', code: 'NV', name: 'Nhân Viên', responsibilityAllowance: 0 },
+      { id: 'pos-cn', code: 'CN', name: 'Công Nhân', responsibilityAllowance: 0 }
+    ]
+  };
+
+  return {
+    settings: cleanSettings,
+    employees: [],
+    dependents: [],
+    insurances: [],
+    mealRegistrations: [],
+    specialAllowances: [],
+    timekeepings: [],
+    payrolls: []
+  };
+};
+
+/**
+ * Lấy danh sách các bảng tính Google Sheets trên Google Drive của người dùng
+ */
+export const listDriveSpreadsheets = async (): Promise<DriveSpreadsheetItem[]> => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
+
+  try {
+    const query = encodeURIComponent(`mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`);
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=modifiedTime desc&fields=files(id,name,webViewLink,modifiedTime)&pageSize=30`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn('Lỗi gọi Drive files.list:', err);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.files || [];
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách spreadsheet từ Drive:', error);
+    return [];
+  }
+};
+
+/**
+ * Trích xuất Spreadsheet ID từ URL hoặc chuỗi ID
+ */
+export const extractSpreadsheetId = (input: string): string => {
+  const trimmed = input.trim();
+  const match = trimmed.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return trimmed;
+};
+
+/**
+ * Lấy thông tin chi tiết một Spreadsheet từ ID
+ */
+export const fetchSpreadsheetDetails = async (
+  spreadsheetId: string
+): Promise<{ id: string; title: string; url: string }> => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
+
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=spreadsheetId,properties.title,spreadsheetUrl`,
+    {
+      headers: { Authorization: `Bearer ${token}` }
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Không thể tìm thấy hoặc không có quyền truy cập bảng tính này.');
+  }
+
+  const data = await res.json();
+  return {
+    id: data.spreadsheetId,
+    title: data.properties?.title || 'Bảng tính Google Sheets',
+    url: data.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${data.spreadsheetId}/edit`
+  };
+};
+
+/**
+ * Tạo mới cơ sở dữ liệu trên Google Sheets cho một công ty mới hoàn toàn
+ * Dữ liệu tạo mới để trống (0 nhân viên, 0 chấm công)
+ */
+export const createNewCompanySpreadsheet = async (
+  companyInfo: NewCompanyInput
+): Promise<{
+  id: string;
+  url: string;
+  title: string;
+  cleanData: FullPayrollData;
+}> => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
+
+  const cleanData = createEmptyCompanyData(companyInfo);
+  const title = `Bảng Lương & Nhân Sự - ${companyInfo.companyName.trim()}`;
+
+  // 1. Tạo mới Spreadsheet với đầy đủ 8 sheet tabs
+  const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      properties: { title },
+      sheets: SHEET_NAMES.map(name => ({
+        properties: { title: name }
+      }))
+    })
+  });
+
+  if (!createRes.ok) {
+    const errorText = await createRes.text();
+    throw new Error(`Tạo Google Spreadsheet thất bại: ${errorText}`);
+  }
+
+  const createdData = await createRes.json();
+  const id = createdData.spreadsheetId;
+  const url = createdData.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${id}/edit`;
+
+  // 2. Xuất dữ liệu cấu hình ban đầu + tiêu đề các bảng (dữ liệu nhân sự để trống)
+  await exportDataToGoogleSheets(id, cleanData);
+
+  return {
+    id,
+    url,
+    title,
+    cleanData
+  };
+};
+
+/**
+ * Đọc toàn bộ dữ liệu cấu hình công ty và nhân sự từ Google Sheets về ứng dụng
+ */
+export const importFullDataFromGoogleSheets = async (
   spreadsheetId: string
 ): Promise<Partial<FullPayrollData>> => {
   const token = await getAccessToken();
   if (!token) throw new Error('Chưa đăng nhập Google hoặc phiên làm việc đã hết hạn.');
 
+  const cleanId = extractSpreadsheetId(spreadsheetId);
   const result: Partial<FullPayrollData> = {};
 
   try {
-    // Đọc danh sách nhân viên
-    const empRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/DanhSach_NhanVien!A2:S100`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (empRes.ok) {
-      const empData = await empRes.json();
-      if (empData.values && empData.values.length > 0) {
-        result.employees = empData.values.map((row: any[], idx: number) => ({
-          id: `emp-imp-${idx + 1}`,
-          employeeCode: row[0] || `NV-${idx + 1}`,
-          fullName: row[1] || 'Chưa đặt tên',
-          idCardNumber: row[2] || '',
-          birthDate: row[3] || '1990-01-01',
-          issueDate: row[4] || '',
-          issuePlace: row[5] || '',
-          address: row[6] || '',
-          phoneNumber: row[7] || '',
-          email: row[8] || '',
-          departmentId: 'dep-kt',
-          positionId: 'pos-nv',
-          workStatus: row[11]?.includes('nghỉ') ? 'resigned' : 'active',
-          startDate: row[12] || '2024-01-01',
-          salaryBasis: 'monthly',
-          baseSalary: Number(String(row[14] || '0').replace(/\D/g, '')) || 10000000,
-          salaryPercent: Number(row[15]) || 100,
-          bankAccount: row[16] || '',
-          bankName: row[17] || '',
-          taxId: row[18] || ''
-        }));
+    // 1. Đọc sheet cài đặt hệ thống (HeThong_CaiDat)
+    const settingsRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/HeThong_CaiDat!A1:C25`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (settingsRes.ok) {
+      const sData = await settingsRes.json();
+      if (sData.values && sData.values.length > 2) {
+        const settingsMap = new Map<string, string>();
+        for (const row of sData.values) {
+          if (row[0] && row[1]) {
+            settingsMap.set(String(row[0]).trim().toLowerCase(), String(row[1]).trim());
+          }
+        }
+        
+        result.settings = {
+          ...initialSettings,
+          companyName: settingsMap.get('tên đơn vị') || initialSettings.companyName,
+          directorName: settingsMap.get('giám đốc') || initialSettings.directorName,
+          chiefAccountantName: settingsMap.get('kế toán trưởng') || initialSettings.chiefAccountantName,
+          reportPreparerName: settingsMap.get('người lập biểu') || initialSettings.reportPreparerName,
+          address: settingsMap.get('địa chỉ') || initialSettings.address,
+          taxCode: settingsMap.get('mã số thuế') || initialSettings.taxCode,
+          phoneNumber: settingsMap.get('số điện thoại') || initialSettings.phoneNumber,
+          standardWorkDays: Number(settingsMap.get('số ngày công chuẩn trong tháng')) || initialSettings.standardWorkDays
+        };
       }
     }
   } catch (err) {
-    console.error('Lỗi khi đọc danh sách nhân viên từ Google Sheets:', err);
+    console.warn('Lỗi đọc HeThong_CaiDat:', err);
+  }
+
+  try {
+    // 2. Đọc danh sách nhân viên (DanhSach_NhanVien)
+    const empRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/DanhSach_NhanVien!A2:S200`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (empRes.ok) {
+      const empData = await empRes.json();
+      if (empData.values && empData.values.length > 0) {
+        result.employees = empData.values
+          .filter((row: any[]) => row && row[0] && row[1]) // Bỏ qua dòng trống
+          .map((row: any[], idx: number) => ({
+            id: `emp-g-${idx + 1}`,
+            employeeCode: String(row[0] || `NV-${idx + 1}`).trim(),
+            fullName: String(row[1] || 'Chưa đặt tên').trim(),
+            idCardNumber: String(row[2] || '').trim(),
+            birthDate: String(row[3] || '1990-01-01').trim(),
+            issueDate: String(row[4] || '').trim(),
+            issuePlace: String(row[5] || '').trim(),
+            address: String(row[6] || '').trim(),
+            phoneNumber: String(row[7] || '').trim(),
+            email: String(row[8] || '').trim(),
+            departmentId: 'dep-kt',
+            positionId: 'pos-nv',
+            workStatus: String(row[11] || '').includes('nghỉ') ? 'resigned' : 'active',
+            startDate: String(row[12] || '2024-01-01').trim(),
+            salaryBasis: 'monthly',
+            baseSalary: Number(String(row[14] || '0').replace(/\D/g, '')) || 10000000,
+            salaryPercent: Number(row[15]) || 100,
+            bankAccount: String(row[16] || '').trim(),
+            bankName: String(row[17] || '').trim(),
+            taxId: String(row[18] || '').trim()
+          }));
+      } else {
+        result.employees = [];
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi khi đọc danh sách nhân viên:', err);
   }
 
   return result;
 };
+
+/**
+ * Đọc dữ liệu từ Google Sheets về ứng dụng (tương thích ngược)
+ */
+export const importDataFromGoogleSheets = async (
+  spreadsheetId: string
+): Promise<Partial<FullPayrollData>> => {
+  return importFullDataFromGoogleSheets(spreadsheetId);
+};
+
