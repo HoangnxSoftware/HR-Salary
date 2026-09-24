@@ -118,15 +118,15 @@ export const GoogleSyncModal: React.FC<GoogleSyncModalProps> = ({
         setIsProcessing(true);
         setActionMessage('Đang đồng bộ 8 phân hệ dữ liệu lên Google Sheets...');
         try {
-          await exportDataToGoogleSheets(syncState.spreadsheetId!, payrollData);
+          const res = await exportDataToGoogleSheets(syncState.spreadsheetId!, payrollData);
           const nowStr = new Date().toLocaleTimeString('vi-VN') + ' ' + new Date().toLocaleDateString('vi-VN');
           setSyncState(prev => ({
             ...prev,
             lastSyncTime: nowStr,
             syncSuccess: true,
-            syncMessage: `Đã đồng bộ thành công vào ${nowStr}`
+            syncMessage: `Đã đồng bộ ${res.totalUpdatedCells} ô dữ liệu vào ${nowStr}`
           }));
-          setActionMessage('Đồng bộ lên Google Sheets thành công!');
+          setActionMessage(`Đồng bộ lên Google Sheets thành công! (${res.totalUpdatedCells} ô dữ liệu đã được cập nhật)`);
         } catch (err: any) {
           console.error('Export error:', err);
           setActionMessage(`Lỗi đồng bộ: ${err.message}`);

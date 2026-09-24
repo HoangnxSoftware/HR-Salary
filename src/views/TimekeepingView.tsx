@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Users
+  Users,
+  Printer
 } from 'lucide-react';
 import { 
   TimekeepingRecord, 
@@ -33,6 +34,7 @@ import {
 import { exportTimekeepingToExcel } from '../utils/excelHelper';
 import { recalculateTimekeepingSummary } from '../utils/payrollCalculator';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PrintTimekeepingModal } from '../components/PrintTimekeepingModal';
 import { 
   WORK_SHIFTS, 
   SHIFT_MAP, 
@@ -64,6 +66,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterShift, setFilterShift] = useState<string>('all');
   const [filterOnlyOt, setFilterOnlyOt] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Modal chỉnh sửa ô ngày công
   const [selectedDayModal, setSelectedDayModal] = useState<{
@@ -455,13 +458,24 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
           )}
 
           {canExportData && (
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>Xuất Bảng Công & OT (Excel)</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                title="In bảng chấm công và theo dõi tăng ca"
+              >
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <span>In Bảng Chấm Công</span>
+              </button>
+
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Xuất Bảng Công & OT (Excel)</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1368,6 +1382,15 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal In Bảng Chấm Công */}
+      <PrintTimekeepingModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        timekeepings={timekeepings}
+        employees={employees}
+        settings={settings}
+      />
     </div>
   );
 };

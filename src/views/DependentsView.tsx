@@ -1,14 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { Users, UserPlus, Trash2, Edit3, Download, Search, CheckCircle2, ShieldAlert, Upload, FileSpreadsheet } from 'lucide-react';
-import { Dependent, Employee, RelationshipType } from '../types';
+import { Users, UserPlus, Trash2, Edit3, Download, Search, CheckCircle2, ShieldAlert, Upload, FileSpreadsheet, Printer } from 'lucide-react';
+import { Dependent, Employee, RelationshipType, SystemSettings } from '../types';
 import { formatVND } from '../utils/payrollCalculator';
 import { downloadDependentTemplate, readDependentExcel } from '../utils/excelHelper';
 import * as XLSX from 'xlsx';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PrintDependentsModal } from '../components/PrintDependentsModal';
 
 interface DependentsViewProps {
   dependents: Dependent[];
   employees: Employee[];
+  settings?: SystemSettings;
   onAddDependent: (dependent: Dependent) => void;
   onUpdateDependent: (dependent: Dependent) => void;
   onDeleteDependent: (id: string) => void;
@@ -18,6 +20,7 @@ interface DependentsViewProps {
 export const DependentsView: React.FC<DependentsViewProps> = ({
   dependents,
   employees,
+  settings,
   onAddDependent,
   onUpdateDependent,
   onDeleteDependent,
@@ -25,6 +28,7 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
 }) => {
   const { canEditEmployees, canExportData } = useAuthRole();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDep, setEditingDep] = useState<Dependent | null>(null);
   const [importNotification, setImportNotification] = useState<string | null>(null);
@@ -198,13 +202,24 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
           )}
 
           {canExportData && (
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>Xuất Excel</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                title="In danh sách người phụ thuộc giảm trừ gia cảnh"
+              >
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <span>In Danh Sách NPT</span>
+              </button>
+
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Xuất Excel</span>
+              </button>
+            </>
           )}
 
           {canEditEmployees && (
@@ -461,6 +476,17 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal In Danh Sách Người Phụ Thuộc */}
+      {settings && (
+        <PrintDependentsModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          dependents={dependents}
+          employees={employees}
+          settings={settings}
+        />
       )}
     </div>
   );

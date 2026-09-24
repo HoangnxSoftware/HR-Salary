@@ -310,8 +310,10 @@ export interface PayrollRecord {
   // 1. Thông tin cơ sở
   standardDays: number; // Ngày công chuẩn tháng
   actualPaidDays: number; // Ngày công tính lương thực tế
+  actualWorkDays?: number; // Ngày công đi làm thực tế
   actualWorkHours?: number; // Số giờ làm việc thực tế (cho lương theo giờ)
   hourlyRateApplied?: number; // Đơn giá lương/giờ áp dụng
+  salaryBasis?: SalaryCalculationBasis; // Hình thức tính lương (tháng, ngày công, giờ, KPI...)
   baseSalary: number; // Lương cơ bản / hợp đồng
 
   

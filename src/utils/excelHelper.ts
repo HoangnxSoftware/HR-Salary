@@ -266,9 +266,19 @@ export const exportPayrollToExcel = (
       'Họ và Tên': emp?.fullName || '',
       'Phòng Ban': depMap.get(emp?.departmentId || '') || '',
       'Chức Vụ': posMap.get(emp?.positionId || '') || '',
-      'Lương Cơ Bản': p.baseSalary,
+      'Hình Thức Lương': emp?.salaryBasis === 'monthly' ? 'Lương tháng' :
+        emp?.salaryBasis === 'daily' ? 'Theo ngày công' :
+        emp?.salaryBasis === 'hourly' ? 'Theo giờ' :
+        emp?.salaryBasis === 'percent' ? `Theo KPI (${emp.salaryPercent || 100}%)` : 'Theo bộ phận',
+      'Lương Cơ Bản (HĐ)': p.baseSalary,
       'Ngày Công Chuẩn': p.standardDays,
-      'Ngày Công Hưởng Lương': p.actualPaidDays,
+      'Công / Giờ / KPI': emp?.salaryBasis === 'hourly' 
+        ? `${p.actualWorkHours ?? (p.actualPaidDays * 8)} giờ`
+        : emp?.salaryBasis === 'daily'
+        ? `${p.actualPaidDays} ngày công`
+        : emp?.salaryBasis === 'percent'
+        ? `${p.actualPaidDays} công (${emp.salaryPercent || 100}% KPI)`
+        : `${p.actualPaidDays} ngày công`,
       'Lương Chính': p.mainSalary,
       'Làm Thêm Giờ (Tính thuế)': p.otPayTaxable,
       'Làm Thêm Giờ (Miễn thuế)': p.otPayTaxExempt,

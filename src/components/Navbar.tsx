@@ -26,6 +26,7 @@ interface NavbarProps {
   onOpenUserManagement: () => void;
   onOpenChangePassword: () => void;
   onOpenLoginModal: () => void;
+  onRequestLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,7 +38,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onMonthChange,
   onOpenUserManagement,
   onOpenChangePassword,
-  onOpenLoginModal
+  onOpenLoginModal,
+  onRequestLogout
 }) => {
   const { 
     currentUser,
@@ -149,6 +151,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onOpenUserManagement={onOpenUserManagement}
               onOpenChangePassword={onOpenChangePassword}
               onOpenLoginModal={onOpenLoginModal}
+              onRequestLogout={onRequestLogout}
             />
           </div>
         </div>

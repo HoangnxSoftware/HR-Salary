@@ -1,14 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { Gift, Plus, Trash2, Edit3, Download, Search, CheckCircle2, ShieldCheck, DollarSign, Upload, FileSpreadsheet } from 'lucide-react';
-import { SpecialAllowance, Employee } from '../types';
+import { Gift, Plus, Trash2, Edit3, Download, Search, CheckCircle2, ShieldCheck, DollarSign, Upload, FileSpreadsheet, Printer } from 'lucide-react';
+import { SpecialAllowance, Employee, SystemSettings } from '../types';
 import { formatVND } from '../utils/payrollCalculator';
 import { downloadAllowanceTemplate, readAllowanceExcel } from '../utils/excelHelper';
 import * as XLSX from 'xlsx';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PrintAllowancesModal } from '../components/PrintAllowancesModal';
 
 interface AllowancesViewProps {
   specialAllowances: SpecialAllowance[];
   employees: Employee[];
+  settings?: SystemSettings;
   onAddAllowance: (allowance: SpecialAllowance) => void;
   onUpdateAllowance: (allowance: SpecialAllowance) => void;
   onDeleteAllowance: (id: string) => void;
@@ -18,6 +20,7 @@ interface AllowancesViewProps {
 export const AllowancesView: React.FC<AllowancesViewProps> = ({
   specialAllowances,
   employees,
+  settings,
   onAddAllowance,
   onUpdateAllowance,
   onDeleteAllowance,
@@ -25,6 +28,7 @@ export const AllowancesView: React.FC<AllowancesViewProps> = ({
 }) => {
   const { canEditEmployees, canExportData } = useAuthRole();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SpecialAllowance | null>(null);
   const [importNotification, setImportNotification] = useState<string | null>(null);
@@ -189,13 +193,24 @@ export const AllowancesView: React.FC<AllowancesViewProps> = ({
           )}
 
           {canExportData && (
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>Xuất Excel</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                title="In bảng tổng hợp các khoản phụ cấp đặc thù"
+              >
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <span>In Phụ Cấp Đặc Thù</span>
+              </button>
+
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Xuất Excel</span>
+              </button>
+            </>
           )}
 
           {canEditEmployees && (
@@ -445,6 +460,17 @@ export const AllowancesView: React.FC<AllowancesViewProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal In Danh Sách Phụ Cấp Đặc Thù */}
+      {settings && (
+        <PrintAllowancesModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          specialAllowances={filteredAllowances.length ? filteredAllowances : specialAllowances}
+          employees={employees}
+          settings={settings}
+        />
       )}
     </div>
   );

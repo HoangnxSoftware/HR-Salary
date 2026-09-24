@@ -46,13 +46,15 @@ import { UserManagementView } from './views/UserManagementView';
 import { MyPayslipView } from './views/MyPayslipView';
 import { LoginModal } from './components/LoginModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { LogoutSyncConfirmModal } from './components/LogoutSyncConfirmModal';
 
 function PayrollAppContent() {
-  const { currentUser, isAuthenticated, currentUserRole } = useAuthRole();
+  const { currentUser, isAuthenticated, currentUserRole, logout } = useAuthRole();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   // Auto redirect employee to my_payslip
   useEffect(() => {
@@ -70,17 +72,51 @@ function PayrollAppContent() {
   const [specialAllowances, setSpecialAllowances] = useState<SpecialAllowance[]>(INITIAL_SPECIAL_ALLOWANCES);
   const [timekeepings, setTimekeepings] = useState<TimekeepingRecord[]>(INITIAL_TIMEKEEPINGS);
 
-  // Sync State with Google Sheets / Drive
-  const [syncState, setSyncState] = useState<GoogleSyncState>({
-    isConnected: false,
-    userEmail: null,
-    spreadsheetId: null,
-    spreadsheetUrl: null,
-    lastSyncTime: null,
-    isSyncing: false,
-    syncSuccess: false,
-    syncMessage: null
+  // Sync State with Google Sheets / Drive (Persisted across sessions)
+  const [syncState, setSyncState] = useState<GoogleSyncState>(() => {
+    try {
+      const saved = localStorage.getItem('payroll_google_sync_state');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Lỗi đọc sync state từ localStorage:', e);
+    }
+    return {
+      isConnected: false,
+      userEmail: null,
+      spreadsheetId: null,
+      spreadsheetUrl: null,
+      lastSyncTime: null,
+      isSyncing: false,
+      syncSuccess: false,
+      syncMessage: null
+    };
   });
+
+  // Tự động lưu trạng thái đồng bộ vào localStorage khi có thay đổi
+  useEffect(() => {
+    try {
+      localStorage.setItem('payroll_google_sync_state', JSON.stringify(syncState));
+    } catch (e) {
+      console.warn('Lỗi lưu sync state:', e);
+    }
+  }, [syncState]);
+
+  // Yêu cầu: Khi đóng thẻ/tab trình duyệt, luôn cảnh báo để nhắc nhở đồng bộ lên Google Drive / Sheets
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      const confirmNotice = 'Bạn có thể có dữ liệu tính lương chưa đồng bộ lên Google Sheets/Drive. Bạn có chắc chắn muốn đóng tab không?';
+      e.returnValue = confirmNotice;
+      return confirmNotice;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // Modal states
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -394,6 +430,7 @@ function PayrollAppContent() {
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
+        onRequestLogout={() => setIsLogoutConfirmOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -408,6 +445,7 @@ function PayrollAppContent() {
           onOpenUserManagement={() => setActiveTab('users')}
           onOpenChangePassword={() => setIsChangePasswordOpen(true)}
           onOpenLoginModal={() => setIsLoginModalOpen(true)}
+          onRequestLogout={() => setIsLogoutConfirmOpen(true)}
         />
 
         <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
@@ -469,6 +507,7 @@ function PayrollAppContent() {
               employees={employees}
               departments={settings.departments}
               positions={settings.positions}
+              settings={settings}
               onAddEmployee={handleAddEmployeeClick}
               onEditEmployee={handleEditEmployeeClick}
               onDeleteEmployee={handleDeleteEmployee}
@@ -491,6 +530,7 @@ function PayrollAppContent() {
             <DependentsView
               dependents={dependents}
               employees={employees}
+              settings={settings}
               onAddDependent={handleAddDependent}
               onUpdateDependent={handleUpdateDependent}
               onDeleteDependent={handleDeleteDependent}
@@ -512,6 +552,7 @@ function PayrollAppContent() {
             <AllowancesView
               specialAllowances={specialAllowances}
               employees={employees}
+              settings={settings}
               onAddAllowance={handleAddAllowance}
               onUpdateAllowance={handleUpdateAllowance}
               onDeleteAllowance={handleDeleteAllowance}
@@ -594,6 +635,22 @@ function PayrollAppContent() {
       <ChangePasswordModal
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
+      />
+
+      <LogoutSyncConfirmModal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+        syncState={syncState}
+        setSyncState={setSyncState}
+        payrollData={fullPayrollData}
+        onDirectLogout={() => {
+          setIsLogoutConfirmOpen(false);
+          logout();
+        }}
+        onOpenSyncModal={() => {
+          setIsLogoutConfirmOpen(false);
+          setIsSyncModalOpen(true);
+        }}
       />
     </div>
   );

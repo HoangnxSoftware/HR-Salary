@@ -16,12 +16,14 @@ import {
   Plus,
   Trash2,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Printer
 } from 'lucide-react';
 import { InsuranceRecord, Employee, SystemSettings, InsuranceSalaryHistory } from '../types';
 import { formatVND } from '../utils/payrollCalculator';
 import * as XLSX from 'xlsx';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PrintInsuranceModal } from '../components/PrintInsuranceModal';
 
 interface InsuranceViewProps {
   insurances: InsuranceRecord[];
@@ -39,6 +41,7 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
   onUpdateSettings
 }) => {
   const { canEditEmployees, canExportData, canEditSettings } = useAuthRole();
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ 
     isParticipating: boolean; 
@@ -378,13 +381,24 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
           )}
 
           {canExportData && (
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>Xuất Danh Sách BHXH (Excel)</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                title="In danh sách trích nộp BHXH"
+              >
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <span>In Danh Sách BHXH</span>
+              </button>
+
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Xuất Danh Sách BHXH (Excel)</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1281,6 +1295,15 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal In Danh Sách BHXH */}
+      <PrintInsuranceModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        insurances={insurances}
+        employees={employees}
+        settings={settings}
+      />
     </div>
   );
 };

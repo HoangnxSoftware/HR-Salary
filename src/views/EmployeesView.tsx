@@ -18,15 +18,17 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { Employee, Department, Position } from '../types';
+import { Employee, Department, Position, SystemSettings } from '../types';
 import { formatVND } from '../utils/payrollCalculator';
 import { exportEmployeesToExcel, downloadEmployeeTemplate, readEmployeeExcel } from '../utils/excelHelper';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PrintEmployeesModal } from '../components/PrintEmployeesModal';
 
 interface EmployeesViewProps {
   employees: Employee[];
   departments: Department[];
   positions: Position[];
+  settings?: SystemSettings;
   onAddEmployee: () => void;
   onEditEmployee: (employee: Employee) => void;
   onDeleteEmployee: (id: string) => void;
@@ -38,6 +40,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   employees,
   departments,
   positions,
+  settings,
   onAddEmployee,
   onEditEmployee,
   onDeleteEmployee,
@@ -47,6 +50,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const { canEditEmployees, canExportData } = useAuthRole();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -160,13 +164,24 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           )}
 
           {canExportData && (
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>Xuất Excel</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                title="In danh sách người lao động"
+              >
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <span>In Danh Sách</span>
+              </button>
+
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Xuất Excel</span>
+              </button>
+            </>
           )}
 
           {canEditEmployees && (
@@ -410,6 +425,18 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Modal In Danh Sách Người Lao Động */}
+      {settings && (
+        <PrintEmployeesModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          employees={filteredEmployees.length ? filteredEmployees : employees}
+          departments={departments}
+          positions={positions}
+          settings={settings}
+        />
+      )}
     </div>
   );
 };

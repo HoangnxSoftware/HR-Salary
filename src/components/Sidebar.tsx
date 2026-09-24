@@ -12,7 +12,8 @@ import {
   Receipt, 
   Cloud,
   X,
-  UserCog
+  UserCog,
+  LogOut
 } from 'lucide-react';
 import { useAuthRole } from '../context/AuthRoleContext';
 
@@ -22,6 +23,7 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onOpenSyncModal: () => void;
+  onRequestLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -29,7 +31,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   isOpenMobile,
   onCloseMobile,
-  onOpenSyncModal
+  onOpenSyncModal,
+  onRequestLogout
 }) => {
   const { 
     currentUserRole, 
@@ -137,21 +140,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Footer: Google Sheets Sync Button */}
-        {currentUserRole !== 'employee' && (
-          <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+        {/* Footer: Google Sheets Sync & Logout Buttons */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/40 space-y-2">
+          {currentUserRole !== 'employee' && (
             <button
               onClick={() => {
                 onOpenSyncModal();
                 onCloseMobile();
               }}
-              className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 p-2.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer"
             >
               <Cloud className="w-4 h-4 text-emerald-400" />
               <span>Google Drive / Sheets</span>
             </button>
-          </div>
-        )}
+          )}
+
+          {onRequestLogout && (
+            <button
+              onClick={() => {
+                onCloseMobile();
+                onRequestLogout();
+              }}
+              className="w-full flex items-center justify-center gap-2 p-2 bg-red-950/30 hover:bg-red-900/40 text-red-300 hover:text-red-200 border border-red-500/20 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Đăng xuất & Thoát</span>
+            </button>
+          )}
+        </div>
       </aside>
     </>
   );

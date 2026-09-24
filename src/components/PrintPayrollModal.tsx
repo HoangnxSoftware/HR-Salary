@@ -101,8 +101,8 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
                 <div className="text-[11px] text-slate-500">Địa chỉ: {settings.address}</div>
               </div>
               <div className="text-right">
-                <div className="font-bold text-xs">Mẫu số: 02-LĐTL</div>
-                <div className="text-[10px] text-slate-500">(Ban hành theo Thông tư 200/2014/TT-BTC)</div>
+                <div className="text-xs text-slate-600 font-medium">Kỳ tính lương: Tháng {settings.currentMonth}/{settings.currentYear}</div>
+                <div className="text-[10px] text-slate-400">Ngày in: {new Date().toLocaleDateString('vi-VN')}</div>
               </div>
             </div>
 
@@ -121,10 +121,11 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
                 <tr>
                   <th rowSpan={2} className="border border-slate-400 p-1">STT</th>
                   <th rowSpan={2} className="border border-slate-400 p-1">Mã NV</th>
-                  <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[120px]">Họ và Tên</th>
-                  <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[90px]">Chức Vụ</th>
+                  <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[110px]">Họ và Tên</th>
+                  <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[80px]">Chức Vụ</th>
+                  <th rowSpan={2} className="border border-slate-400 p-1 min-w-[85px] bg-slate-200/70">Hình thức lương</th>
                   <th rowSpan={2} className="border border-slate-400 p-1">Lương CB (HĐ)</th>
-                  <th rowSpan={2} className="border border-slate-400 p-1">Công</th>
+                  <th rowSpan={2} className="border border-slate-400 p-1 min-w-[70px]">Công / Giờ / KPI</th>
                   <th colSpan={4} className="border border-slate-400 p-1 bg-emerald-50">CÁC KHOẢN THU NHẬP</th>
                   <th rowSpan={2} className="border border-slate-400 p-1 bg-emerald-100 font-black">TỔNG GROSS</th>
                   <th colSpan={3} className="border border-slate-400 p-1 bg-amber-50">
@@ -156,8 +157,37 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
                       <td className="border border-slate-300 p-1 font-mono font-bold">{emp?.employeeCode}</td>
                       <td className="border border-slate-300 p-1 text-left font-semibold">{emp?.fullName}</td>
                       <td className="border border-slate-300 p-1 text-left">{posMap.get(emp?.positionId || '')}</td>
+                      <td className="border border-slate-300 p-1 text-left font-medium text-slate-800">
+                        {emp?.salaryBasis === 'monthly' ? 'Lương tháng' :
+                         emp?.salaryBasis === 'daily' ? 'Theo ngày công' :
+                         emp?.salaryBasis === 'hourly' ? 'Theo giờ' :
+                         emp?.salaryBasis === 'percent' ? `Theo KPI (${emp.salaryPercent || 100}%)` :
+                         'Theo bộ phận'}
+                      </td>
                       <td className="border border-slate-300 p-1 text-right font-mono">{formatVND(p.baseSalary)}</td>
-                      <td className="border border-slate-300 p-1 font-bold text-emerald-800">{p.actualPaidDays}</td>
+                      <td className="border border-slate-300 p-1 text-center font-bold text-emerald-900">
+                        {emp?.salaryBasis === 'hourly' ? (
+                          <div className="leading-tight">
+                            <span className="font-mono text-emerald-950 font-black">{p.actualWorkHours ?? (p.actualPaidDays * 8)}</span>
+                            <span className="text-[8.5px] font-semibold text-slate-500 block">giờ làm</span>
+                          </div>
+                        ) : emp?.salaryBasis === 'daily' ? (
+                          <div className="leading-tight">
+                            <span className="font-mono text-emerald-950 font-black">{p.actualPaidDays}</span>
+                            <span className="text-[8.5px] font-semibold text-slate-500 block">ngày công</span>
+                          </div>
+                        ) : emp?.salaryBasis === 'percent' ? (
+                          <div className="leading-tight">
+                            <span className="font-mono text-emerald-950 font-black">{p.actualPaidDays} công</span>
+                            <span className="text-[8.5px] font-bold text-blue-600 block">{emp.salaryPercent || 100}% KPI</span>
+                          </div>
+                        ) : (
+                          <div className="leading-tight">
+                            <span className="font-mono text-emerald-950 font-black">{p.actualPaidDays}</span>
+                            <span className="text-[8.5px] font-semibold text-slate-500 block">ngày công</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="border border-slate-300 p-1 text-right font-mono">{formatVND(p.mainSalary)}</td>
                       <td className="border border-slate-300 p-1 text-right font-mono">{formatVND(p.otPayTaxable + p.otPayTaxExempt)}</td>
                       <td className="border border-slate-300 p-1 text-right font-mono">{formatVND(p.taxableAllowances + p.taxExemptAllowances)}</td>
@@ -181,7 +211,7 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
               </tbody>
               <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-800 text-slate-900">
                 <tr>
-                  <td colSpan={4} className="border border-slate-400 p-1.5 text-center uppercase">TỔNG CỘNG</td>
+                  <td colSpan={5} className="border border-slate-400 p-1.5 text-center uppercase">TỔNG CỘNG</td>
                   <td className="border border-slate-400 p-1.5 text-right font-mono">{formatVND(totalBaseSalary)}</td>
                   <td className="border border-slate-400 p-1.5">-</td>
                   <td className="border border-slate-400 p-1.5 text-right font-mono">{formatVND(totalMainSalary)}</td>

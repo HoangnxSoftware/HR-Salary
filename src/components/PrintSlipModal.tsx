@@ -49,7 +49,7 @@ export const PrintSlipModal: React.FC<PrintSlipModalProps> = ({
               <h3 className="font-bold text-base">
                 {selectedEmployeeId ? 'In Phiếu Lương Cá Nhân' : `In Hàng Loạt Phiếu Lương (${targetEmployees.length} nhân viên)`}
               </h3>
-              <p className="text-xs text-slate-400">Tháng {month} - Biểu mẫu chuẩn tiền lương doanh nghiệp</p>
+              <p className="text-xs text-slate-400">Tháng {month} - Phiếu thanh toán tiền lương nhân viên</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -115,7 +115,6 @@ export const PrintSlipModal: React.FC<PrintSlipModalProps> = ({
                         <div className="text-xs font-semibold px-2.5 py-1 bg-slate-100 rounded border border-slate-300 inline-block font-mono">
                           MÃ NV: {emp.employeeCode}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-1">Biểu mẫu số: 02-LĐTL</div>
                       </div>
                     </div>
 

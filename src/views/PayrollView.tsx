@@ -233,8 +233,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
                 <th className="px-3 py-3">Mã NV</th>
                 <th className="px-3 py-3">Họ và Tên</th>
                 <th className="px-3 py-3">Phòng Ban</th>
+                <th className="px-3 py-3">Hình Thức</th>
                 <th className="px-3 py-3 text-right">Lương CB</th>
-                <th className="px-3 py-3 text-center">Công</th>
+                <th className="px-3 py-3 text-center">Công / Giờ</th>
                 <th className="px-3 py-3 text-right">Lương Chính</th>
                 <th className="px-3 py-3 text-right">OT & Phụ Cấp</th>
                 <th className="px-3 py-3 text-right font-black text-slate-900 bg-emerald-50">TỔNG GROSS</th>
@@ -251,7 +252,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
             <tbody className="divide-y divide-slate-100">
               {displayPayrolls.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={15} className="px-6 py-8 text-center text-slate-400">
                     Không có bản ghi bảng lương nào phù hợp.
                   </td>
                 </tr>
@@ -272,6 +273,15 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
                       <td className="px-3 py-3 text-slate-600">
                         {depMap.get(emp?.departmentId || '')}
                       </td>
+                      <td className="px-3 py-3">
+                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">
+                          {emp?.salaryBasis === 'monthly' ? 'Lương tháng' :
+                           emp?.salaryBasis === 'daily' ? 'Ngày công' :
+                           emp?.salaryBasis === 'hourly' ? 'Theo giờ' :
+                           emp?.salaryBasis === 'percent' ? `${emp.salaryPercent || 100}% KPI` :
+                           'Bộ phận'}
+                        </span>
+                      </td>
                       <td className="px-3 py-3 text-right font-mono font-medium">
                         <div>{formatVND(p.baseSalary)}</div>
                         {emp?.salaryBasis === 'hourly' && (
@@ -288,9 +298,20 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
                             </span>
                             <div className="text-[10px] text-slate-400 font-medium mt-0.5">({p.actualPaidDays} công)</div>
                           </div>
+                        ) : emp?.salaryBasis === 'daily' ? (
+                          <div>
+                            <span className="font-bold text-emerald-800 font-mono text-sm">{p.actualPaidDays}</span>
+                            <div className="text-[10px] text-slate-500 font-medium">ngày công</div>
+                          </div>
+                        ) : emp?.salaryBasis === 'percent' ? (
+                          <div>
+                            <span className="font-bold text-emerald-800 font-mono">{p.actualPaidDays}</span>
+                            <span className="text-[10px] text-slate-400">/{p.standardDays}</span>
+                            <div className="text-[10px] text-blue-600 font-semibold">{emp.salaryPercent || 100}% KPI</div>
+                          </div>
                         ) : (
                           <div>
-                            <span className="font-bold text-emerald-700">{p.actualPaidDays}</span>
+                            <span className="font-bold text-emerald-700 font-mono">{p.actualPaidDays}</span>
                             <span className="text-[10px] text-slate-400">/{p.standardDays}</span>
                           </div>
                         )}

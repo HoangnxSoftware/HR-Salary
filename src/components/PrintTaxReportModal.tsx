@@ -101,9 +101,8 @@ export const PrintTaxReportModal: React.FC<PrintTaxReportModalProps> = ({
                 </div>
               </div>
               <div className="text-right text-[11px] text-slate-600">
-                <span className="font-bold block text-slate-900 uppercase">Mẫu Biểu Kê Khai Thuế TNCN</span>
-                <span>Ban hành kèm TT 111/2013/TT-BTC</span>
-                <span className="block mt-0.5 font-semibold text-emerald-800">Biểu lũy tiến từng phần</span>
+                <span className="font-semibold block text-slate-700">Kỳ tính thuế: Tháng {month} / {settings.currentYear}</span>
+                <span className="block mt-0.5 text-slate-400">Ngày in: {new Date().toLocaleDateString('vi-VN')}</span>
               </div>
             </div>
 

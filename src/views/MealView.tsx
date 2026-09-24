@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Utensils, Download, Edit2, Check, X, Info } from 'lucide-react';
+import { Utensils, Download, Edit2, Check, X, Info, Printer } from 'lucide-react';
 import { MealRegistration, Employee, SystemSettings, MealType, TimekeepingRecord } from '../types';
 import { formatVND } from '../utils/payrollCalculator';
 import * as XLSX from 'xlsx';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PrintMealModal } from '../components/PrintMealModal';
 
 interface MealViewProps {
   mealRegistrations: MealRegistration[];
@@ -21,6 +22,7 @@ export const MealView: React.FC<MealViewProps> = ({
   onUpdateMeal
 }) => {
   const { canEditEmployees, canExportData } = useAuthRole();
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{
     mealType: MealType;
@@ -124,13 +126,24 @@ export const MealView: React.FC<MealViewProps> = ({
         </div>
 
         {canExportData && (
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-emerald-600" />
-            <span>Xuất Danh Sách Ăn Ca (Excel)</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsPrintModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+              title="In danh sách đăng ký và sử dụng suất ăn ca"
+            >
+              <Printer className="w-4 h-4 text-emerald-600" />
+              <span>In Danh Sách Ăn Ca</span>
+            </button>
+
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-emerald-600" />
+              <span>Xuất Danh Sách Ăn Ca (Excel)</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -304,6 +317,16 @@ export const MealView: React.FC<MealViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Modal In Danh Sách Ăn Ca */}
+      <PrintMealModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        mealRegistrations={mealRegistrations}
+        employees={employees}
+        timekeepings={timekeepings}
+        settings={settings}
+      />
     </div>
   );
 };

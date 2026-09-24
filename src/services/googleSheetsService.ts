@@ -108,28 +108,81 @@ export const getOrCreateSpreadsheet = async (title: string): Promise<{ id: strin
   return { id, url };
 };
 
+// Helper sanitize cells to prevent undefined or NaN from breaking Google Sheets API payload
+const sanitizeValues = (rows: any[][]): (string | number | boolean)[][] => {
+  return rows.map(row =>
+    row.map(val => {
+      if (val === undefined || val === null) return '';
+      if (typeof val === 'number') {
+        return isNaN(val) || !isFinite(val) ? 0 : val;
+      }
+      return String(val);
+    })
+  );
+};
+
 /**
  * Đồng bộ toàn bộ dữ liệu ứng dụng lên Google Sheets
  */
 export const exportDataToGoogleSheets = async (
   spreadsheetId: string,
   data: FullPayrollData
-): Promise<void> => {
+): Promise<{ totalUpdatedCells: number }> => {
   const token = await getAccessToken();
-  if (!token) throw new Error('Chưa có quyền truy cập Google. Vui lòng đăng nhập lại.');
+  if (!token) {
+    throw new Error('Chưa có phiên truy cập Google hoặc phiên làm việc đã hết hạn. Vui lòng bấm "Đăng nhập Google" để cấp quyền đồng bộ.');
+  }
 
-  // Đảm bảo các sheet tab đã tồn tại
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) {
+    throw new Error('ID hoặc đường dẫn Google Spreadsheet không hợp lệ.');
+  }
+
+  // 1. Kiểm tra quyền truy cập và danh sách sheet tabs hiện có
+  let existingSheetNames = new Set<string>();
   try {
-    const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (metaRes.ok) {
-      const meta = await metaRes.json();
-      const existingSheetNames = new Set(meta.sheets?.map((s: any) => s.properties.title) || []);
-      const missingSheets = SHEET_NAMES.filter(name => !existingSheetNames.has(name));
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
 
-      if (missingSheets.length > 0) {
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    if (!metaRes.ok) {
+      let errMsg = metaRes.statusText;
+      try {
+        const errJson = await metaRes.json();
+        errMsg = errJson?.error?.message || errMsg;
+      } catch (_) {}
+
+      if (metaRes.status === 401) {
+        throw new Error('Phiên đăng nhập Google đã hết hạn. Vui lòng nhấn Đăng nhập Google để làm mới quyền.');
+      }
+      if (metaRes.status === 403) {
+        throw new Error(`Google Sheets từ chối quyền truy cập (403): ${errMsg}. Vui lòng kiểm tra quyền chỉnh sửa của tài khoản.`);
+      }
+      if (metaRes.status === 404) {
+        throw new Error(`Không tìm thấy file Google Spreadsheet trên Drive với ID "${cleanId}". Hãy kiểm tra lại liên kết hoặc tạo file mới.`);
+      }
+      throw new Error(`Không thể truy cập Google Sheets (${metaRes.status}): ${errMsg}`);
+    }
+
+    const meta = await metaRes.json();
+    existingSheetNames = new Set(meta.sheets?.map((s: any) => s.properties?.title) || []);
+  } catch (err: any) {
+    if (err.message && err.message.includes('Google Sheets')) {
+      throw err;
+    }
+    throw new Error(`Lỗi kết nối tới Google Sheets: ${err.message || 'Mất kết nối mạng'}`);
+  }
+
+  // 2. Tự động bổ sung các sheet tab còn thiếu
+  const missingSheets = SHEET_NAMES.filter(name => !existingSheetNames.has(name));
+  if (missingSheets.length > 0) {
+    try {
+      const addSheetRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`,
+        {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -140,14 +193,18 @@ export const exportDataToGoogleSheets = async (
               addSheet: { properties: { title } }
             }))
           })
-        });
+        }
+      );
+      if (!addSheetRes.ok) {
+        console.warn('Lưu ý khi tạo thêm sheet tab:', await addSheetRes.text());
       }
+    } catch (e) {
+      console.warn('Không thể tự động thêm sheet tab mới:', e);
     }
-  } catch (err) {
-    console.warn('Lỗi kiểm tra danh sách sheet:', err);
   }
 
-  // 1. Sheet HeThong_CaiDat
+  // 3. Chuẩn bị dữ liệu 8 phân hệ
+  // 3.1 Sheet HeThong_CaiDat
   const settingsRows = [
     ['THÔNG TIN HỆ THỐNG & QUY ĐỊNH TÍNH LƯƠNG'],
     ['Chỉ số / Thiết lập', 'Giá trị', 'Ghi chú'],
@@ -175,7 +232,7 @@ export const exportDataToGoogleSheets = async (
     ['Mức tiền ăn trưa khoán tối đa miễn thuế (VNĐ)', data.settings.monthlyMealFlatRate, '730,000 đ/tháng']
   ];
 
-  // 2. Sheet DanhSach_NhanVien
+  // 3.2 Sheet DanhSach_NhanVien
   const employeeHeader = [
     'Mã Nhân Viên',
     'Họ và Tên',
@@ -222,7 +279,8 @@ export const exportDataToGoogleSheets = async (
       emp.startDate,
       emp.salaryBasis === 'monthly' ? 'Lương tháng' :
         emp.salaryBasis === 'daily' ? 'Theo ngày công' :
-        emp.salaryBasis === 'percent' ? 'Theo %' : 'Theo bộ phận',
+        emp.salaryBasis === 'hourly' ? 'Theo giờ' :
+        emp.salaryBasis === 'percent' ? `Theo KPI (${emp.salaryPercent || 100}%)` : 'Theo bộ phận',
       emp.baseSalary,
       emp.salaryPercent || 100,
       emp.bankAccount || '',
@@ -231,7 +289,7 @@ export const exportDataToGoogleSheets = async (
     ])
   ];
 
-  // 3. Sheet NguoiPhuThuoc
+  // 3.3 Sheet NguoiPhuThuoc
   const empMap = new Map(data.employees.map(e => [e.id, `${e.employeeCode} - ${e.fullName}`]));
   const dependentHeader = [
     'Mã Nhân Viên & Họ Tên',
@@ -259,7 +317,7 @@ export const exportDataToGoogleSheets = async (
     ])
   ];
 
-  // 4. Sheet BaoHiemXaHoi
+  // 3.4 Sheet BaoHiemXaHoi
   const insMap = new Map(data.insurances.map(i => [i.employeeId, i]));
   const insuranceHeader = [
     'Mã NV',
@@ -319,7 +377,7 @@ export const exportDataToGoogleSheets = async (
     })
   ];
 
-  // 5. Sheet DangKy_AnCa
+  // 3.5 Sheet DangKy_AnCa
   const mealMap = new Map(data.mealRegistrations.map(m => [m.employeeId, m]));
   const tkMap = new Map(data.timekeepings.map(t => [t.employeeId, t]));
   const mealHeader = [
@@ -352,7 +410,7 @@ export const exportDataToGoogleSheets = async (
     })
   ];
 
-  // 6. Sheet PhuCap_DacThu
+  // 3.6 Sheet PhuCap_DacThu
   const allowanceHeader = [
     'Mã NV',
     'Họ và Tên',
@@ -380,7 +438,7 @@ export const exportDataToGoogleSheets = async (
     })
   ];
 
-  // 7. Sheet Bang_ChamCong
+  // 3.7 Sheet Bang_ChamCong
   const daysHeader: string[] = [];
   for (let d = 1; d <= 31; d++) {
     daysHeader.push(`N${d}`);
@@ -431,16 +489,17 @@ export const exportDataToGoogleSheets = async (
     })
   ];
 
-  // 8. Sheet Bang_ThanhToanLuong
+  // 3.8 Sheet Bang_ThanhToanLuong
   const prMap = new Map(data.payrolls.map(p => [p.employeeId, p]));
   const payrollHeader = [
     'Mã NV',
     'Họ và Tên',
     'Phòng Ban',
     'Chức Vụ',
-    'Lương Cơ Bản',
+    'Hình Thức Lương',
+    'Lương Cơ Bản (HĐ)',
     'Ngày Chuẩn',
-    'Ngày Hưởng Lương',
+    'Ngày Hưởng Lương / Giờ / KPI',
     'Lương Chính',
     'OT Chịu Thuế',
     'OT Miễn Thuế',
@@ -473,16 +532,30 @@ export const exportDataToGoogleSheets = async (
     ...data.employees.map(emp => {
       const p = prMap.get(emp.id);
       if (!p) {
-        return [emp.employeeCode, emp.fullName, '', '', emp.baseSalary];
+        return [emp.employeeCode, emp.fullName, '', '', emp.salaryBasis || 'monthly', emp.baseSalary];
       }
+      const salaryBasisLabel = emp.salaryBasis === 'monthly' ? 'Lương tháng' :
+        emp.salaryBasis === 'daily' ? 'Theo ngày công' :
+        emp.salaryBasis === 'hourly' ? 'Theo giờ' :
+        emp.salaryBasis === 'percent' ? `Theo KPI (${emp.salaryPercent || 100}%)` : 'Theo bộ phận';
+
+      const workUnitDisplay = emp.salaryBasis === 'hourly'
+        ? `${p.actualWorkHours ?? (p.actualPaidDays * 8)} giờ`
+        : emp.salaryBasis === 'daily'
+        ? `${p.actualPaidDays} ngày công`
+        : emp.salaryBasis === 'percent'
+        ? `${p.actualPaidDays} công (${emp.salaryPercent || 100}% KPI)`
+        : `${p.actualPaidDays} ngày công`;
+
       return [
         emp.employeeCode,
         emp.fullName,
         depMap.get(emp.departmentId) || '',
         posMap.get(emp.positionId) || '',
+        salaryBasisLabel,
         p.baseSalary,
         p.standardDays,
-        p.actualPaidDays,
+        workUnitDisplay,
         p.mainSalary,
         p.otPayTaxable,
         p.otPayTaxExempt,
@@ -503,7 +576,7 @@ export const exportDataToGoogleSheets = async (
         p.assessableIncome,
         p.personalIncomeTax,
         p.advancePayment,
-        p.otherDeductions + p.mealDeduction,
+        (p.otherDeductions || 0) + (p.mealDeduction || 0),
         p.netSalary,
         p.paymentStatus === 'paid' ? 'Đã thanh toán' : p.paymentStatus === 'approved' ? 'Đã duyệt' : 'Dự thảo',
         p.totalInsuranceEmployer,
@@ -512,7 +585,27 @@ export const exportDataToGoogleSheets = async (
     })
   ];
 
-  // Batch update tất cả các sheet vào Google Spreadsheet
+  // 4. Xóa sạch dữ liệu cũ các tab để tránh ghi đè sót cột dòng
+  const clearRanges = SHEET_NAMES.map(name => `${name}!A1:ZZ5000`);
+  try {
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchClear`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ranges: clearRanges
+        })
+      }
+    );
+  } catch (err) {
+    console.warn('Lưu ý khi xóa dữ liệu cũ:', err);
+  }
+
+  // 5. Gửi toàn bộ 8 bảng dữ liệu bằng API values:batchUpdate duy nhất (nguyên khối, bảo đảm tính toàn vẹn)
   const updates = [
     { range: 'HeThong_CaiDat!A1', values: settingsRows },
     { range: 'DanhSach_NhanVien!A1', values: employeeRows },
@@ -524,36 +617,38 @@ export const exportDataToGoogleSheets = async (
     { range: 'Bang_ThanhToanLuong!A1', values: payrollRows },
   ];
 
-  // Ghi lần lượt các sheet
-  for (const item of updates) {
-    const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(item.range.split('!')[0] + '!A1:Z500')}:clear`;
-    await fetch(clearUrl, {
+  const batchRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchUpdate`,
+    {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    }).catch(console.warn);
-
-    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(item.range)}?valueInputOption=USER_ENTERED`;
-    const res = await fetch(updateUrl, {
-      method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        range: item.range,
-        majorDimension: 'ROWS',
-        values: item.values
+        valueInputOption: 'USER_ENTERED',
+        data: updates.map(u => ({
+          range: u.range,
+          majorDimension: 'ROWS',
+          values: sanitizeValues(u.values)
+        }))
       })
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.warn(`Lỗi ghi ${item.range}:`, err);
     }
+  );
+
+  if (!batchRes.ok) {
+    let errMsg = batchRes.statusText;
+    try {
+      const errJson = await batchRes.json();
+      errMsg = errJson?.error?.message || errMsg;
+    } catch (_) {}
+    throw new Error(`Đẩy dữ liệu lên Google Sheets thất bại (${batchRes.status}): ${errMsg}`);
   }
+
+  const batchResult = await batchRes.json();
+  return {
+    totalUpdatedCells: batchResult.totalUpdatedCells || 0
+  };
 };
 
 /**

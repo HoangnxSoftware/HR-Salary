@@ -350,30 +350,34 @@ export const calculateEmployeePayroll = (
   }
 
   // 1. Tính mức lương theo ngày và giờ
-  const dailyRate = employee.baseSalary / standardDays;
-  const standardHourlyRate = dailyRate / standardHours;
+  const dailyRate = employee.salaryBasis === 'daily'
+    ? employee.baseSalary
+    : (standardDays > 0 ? (employee.baseSalary / standardDays) : 0);
+  const standardHourlyRate = dailyRate / (standardHours || 8);
   const appliedHourlyRate = (employee.salaryBasis === 'hourly' && employee.hourlyRate && employee.hourlyRate > 0)
     ? employee.hourlyRate
     : (employee.salaryBasis === 'hourly' ? (employee.baseSalary > 0 ? employee.baseSalary : standardHourlyRate) : standardHourlyRate);
 
-  // 2. Tính lương chính
+  // 2. Tính lương chính theo công thức chuẩn:
+  // - Lương tháng = (Lương CB / Số ngày công chuẩn) × Số ngày làm việc thực tế
+  // - Lương theo ngày công = Lương CB (lương thỏa thuận) × Số ngày làm việc thực tế
+  // - Lương theo giờ = Đơn giá lương/giờ × Số giờ làm việc thực tế
+  // - Lương theo KPI (%) = (Lương CB × % KPI / Số ngày công chuẩn) × Số ngày làm việc thực tế
   let mainSalary = 0;
   if (employee.salaryBasis === 'hourly') {
     // Phương án tính lương theo giờ: Đơn giá giờ * Số giờ làm việc thực tế
     mainSalary = Math.round(appliedHourlyRate * actualWorkHours);
-  } else if (employee.salaryBasis === 'monthly') {
-    if (actualPaidDays >= standardDays) {
-      mainSalary = employee.baseSalary;
-    } else {
-      mainSalary = Math.round(dailyRate * actualPaidDays);
-    }
   } else if (employee.salaryBasis === 'daily') {
-    mainSalary = Math.round(dailyRate * actualPaidDays);
+    // Lương theo ngày công = Lương CB (lương thỏa thuận) x Số ngày làm việc thực tế
+    mainSalary = Math.round(employee.baseSalary * actualPaidDays);
+  } else if (employee.salaryBasis === 'monthly') {
+    // Lương tháng = (Lương CB / Số ngày công chuẩn) × Số ngày làm việc thực tế
+    mainSalary = Math.round((employee.baseSalary / (standardDays || 1)) * actualPaidDays);
   } else if (employee.salaryBasis === 'percent') {
     const percent = (employee.salaryPercent ?? 100) / 100;
-    mainSalary = Math.round((employee.baseSalary * percent / standardDays) * actualPaidDays);
+    mainSalary = Math.round(((employee.baseSalary * percent) / (standardDays || 1)) * actualPaidDays);
   } else {
-    mainSalary = Math.round(dailyRate * actualPaidDays);
+    mainSalary = Math.round((employee.baseSalary / (standardDays || 1)) * actualPaidDays);
   }
   
   // 3. Tính tiền làm thêm giờ (Overtime)
@@ -610,8 +614,10 @@ export const calculateEmployeePayroll = (
     month: currentMonthStr,
     standardDays,
     actualPaidDays,
+    actualWorkDays: timekeeping?.actualWorkDays ?? actualPaidDays,
     actualWorkHours,
     hourlyRateApplied: appliedHourlyRate,
+    salaryBasis: employee.salaryBasis,
 
     baseSalary: employee.baseSalary,
 

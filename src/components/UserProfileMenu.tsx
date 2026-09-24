@@ -20,12 +20,14 @@ interface UserProfileMenuProps {
   onOpenUserManagement: () => void;
   onOpenChangePassword: () => void;
   onOpenLoginModal: () => void;
+  onRequestLogout?: () => void;
 }
 
 export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   onOpenUserManagement,
   onOpenChangePassword,
-  onOpenLoginModal
+  onOpenLoginModal,
+  onRequestLogout
 }) => {
   const { 
     currentUser, 
@@ -204,7 +206,11 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
             <button
               onClick={() => {
                 setIsOpen(false);
-                logout();
+                if (onRequestLogout) {
+                  onRequestLogout();
+                } else {
+                  logout();
+                }
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-red-600 hover:bg-red-50 rounded-xl font-bold transition-colors cursor-pointer text-left"
             >
