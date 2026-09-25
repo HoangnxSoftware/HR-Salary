@@ -9,6 +9,8 @@ interface PrintTimekeepingModalProps {
   timekeepings: TimekeepingRecord[];
   employees: Employee[];
   settings: SystemSettings;
+  customMonth?: number;
+  customYear?: number;
 }
 
 export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
@@ -17,16 +19,23 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
   timekeepings,
   employees,
   settings,
+  customMonth,
+  customYear
 }) => {
   if (!isOpen) return null;
 
-  const year = settings.currentYear;
-  const month = settings.currentMonth;
+  const year = customYear ?? settings.currentYear;
+  const month = customMonth ?? settings.currentMonth;
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
   const daysInMonth = new Date(year, month, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
-  const tkMap = new Map(timekeepings.map(t => [t.employeeId, t]));
+  const tkMap = new Map(
+    timekeepings
+      .filter(t => String(t.month) === monthKey || (Number(t.month) === month && (!t.year || t.year === year)) || (!t.month && month === settings.currentMonth && year === settings.currentYear))
+      .map(t => [t.employeeId, t])
+  );
 
   // Check weekend / holiday
   const isWeekendDay = (day: number) => {
@@ -56,7 +65,9 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
   let grandTotalOtHoliday = 0;
   let grandTotalMeals = 0;
 
-  timekeepings.filter(t => activeEmpIds.has(t.employeeId)).forEach(t => {
+  activeEmployees.forEach(e => {
+    const t = tkMap.get(e.id);
+    if (!t) return;
     grandTotalWorkDays += t.actualWorkDays || 0;
     grandTotalPaidLeave += t.paidLeaveDays || 0;
     grandTotalHolidayDays += t.holidayDays || 0;

@@ -209,6 +209,9 @@ export const recalculateTimekeepingSummary = (tk: TimekeepingRecord): Timekeepin
   let totalOtWeekendHours = 0;
   let totalOtHolidayHours = 0;
   let totalMeals = 0;
+  let totalMealsLunch = 0;
+  let totalMealsAfternoon = 0;
+  let totalMealsDinner = 0;
   let totalActualWorkHours = 0;
 
   Object.values(tk.days || {}).forEach(day => {
@@ -235,9 +238,27 @@ export const recalculateTimekeepingSummary = (tk: TimekeepingRecord): Timekeepin
     totalOtNormalHours += day.otNormalHours || 0;
     totalOtWeekendHours += day.otWeekendHours || 0;
     totalOtHolidayHours += day.otHolidayHours || 0;
-    if (day.mealEaten || day.hadMeal) {
-      totalMeals += 1;
+
+    // Tính số bữa ăn trong ngày theo Trưa / Chiều / Tối
+    let dayMeals = 0;
+    if (day.mealLunch !== undefined || day.mealAfternoon !== undefined || day.mealDinner !== undefined) {
+      if (day.mealLunch) {
+        dayMeals += 1;
+        totalMealsLunch += 1;
+      }
+      if (day.mealAfternoon) {
+        dayMeals += 1;
+        totalMealsAfternoon += 1;
+      }
+      if (day.mealDinner) {
+        dayMeals += 1;
+        totalMealsDinner += 1;
+      }
+    } else if (day.mealEaten || day.hadMeal) {
+      dayMeals += 1;
+      totalMealsLunch += 1;
     }
+    totalMeals += dayMeals;
   });
 
   return {
@@ -252,6 +273,9 @@ export const recalculateTimekeepingSummary = (tk: TimekeepingRecord): Timekeepin
     totalOtWeekendHours,
     totalOtHolidayHours,
     totalMeals,
+    totalMealsLunch,
+    totalMealsAfternoon,
+    totalMealsDinner,
     totalActualWorkHours
   };
 };

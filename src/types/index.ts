@@ -229,6 +229,11 @@ export interface MealRegistration {
   ratePerMeal?: number;
   monthlyAllowance?: number;
   note?: string;
+
+  // Đăng ký ăn ca theo từng bữa trong tháng (Trưa / Chiều / Tối)
+  registerLunch?: boolean; // Đăng ký ăn trưa
+  registerAfternoon?: boolean; // Đăng ký ăn chiều
+  registerDinner?: boolean; // Đăng ký ăn tối
 }
 
 export type MealType = 'canteen' | 'cash' | 'none' | 'registered';
@@ -299,8 +304,13 @@ export interface DayAttendance {
   otNormalHours: number;
   otWeekendHours: number;
   otHolidayHours: number;
+
+  // Suất ăn ca trong ngày (Tích chọn Trưa / Chiều / Tối)
   hadMeal?: boolean;
   mealEaten?: boolean;
+  mealLunch?: boolean; // Tích chọn ăn trưa
+  mealAfternoon?: boolean; // Tích chọn ăn chiều
+  mealDinner?: boolean; // Tích chọn ăn tối
 }
 
 export type DailyTimekeeping = DayAttendance;
@@ -323,7 +333,10 @@ export interface TimekeepingRecord {
   totalOtNormalHours: number;
   totalOtWeekendHours: number;
   totalOtHolidayHours: number;
-  totalMeals: number; // Tổng số bữa ăn trong tháng
+  totalMeals: number; // Tổng số bữa ăn trong tháng (Trưa + Chiều + Tối)
+  totalMealsLunch?: number; // Tổng bữa trưa
+  totalMealsAfternoon?: number; // Tổng bữa chiều
+  totalMealsDinner?: number; // Tổng bữa tối
   totalActualWorkHours?: number; // Tổng số giờ làm việc thực tế (chưa gồm OT)
 }
 

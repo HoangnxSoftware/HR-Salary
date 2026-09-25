@@ -14,7 +14,10 @@ import {
   Utensils,
   CalendarDays,
   Sparkles,
-  Sliders
+  Sliders,
+  Pencil,
+  Check,
+  X
 } from 'lucide-react';
 import { SystemSettings, Department, Position, Holiday, SalaryCalculationBasis, FixedDaysOffPolicy, TaxBracket, TaxExemptionRules } from '../types';
 import { formatVND, calculateStandardDaysFromPolicy, DEFAULT_TAX_BRACKETS, DEFAULT_TAX_EXEMPTION_RULES } from '../utils/payrollCalculator';
@@ -106,6 +109,109 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
 
   const handleDeleteHoliday = (id: string) => {
     setFormData(prev => ({ ...prev, holidays: prev.holidays.filter(h => h.id !== id) }));
+  };
+
+  // Editing states for departments, positions, holidays
+  const [editingDepId, setEditingDepId] = useState<string | null>(null);
+  const [editDepData, setEditDepData] = useState<Department | null>(null);
+
+  const [editingPosId, setEditingPosId] = useState<string | null>(null);
+  const [editPosData, setEditPosData] = useState<Position | null>(null);
+
+  const [editingHolId, setEditingHolId] = useState<string | null>(null);
+  const [editHolData, setEditHolData] = useState<Holiday | null>(null);
+
+  // Department edit handlers
+  const handleStartEditDepartment = (dep: Department) => {
+    setEditingDepId(dep.id);
+    setEditDepData({ ...dep });
+  };
+
+  const handleSaveEditDepartment = () => {
+    if (!editDepData) return;
+    if (!editDepData.code.trim() || !editDepData.name.trim()) {
+      alert('Vui lòng nhập Mã và Tên phòng ban');
+      return;
+    }
+    const updatedDep: Department = {
+      ...editDepData,
+      code: editDepData.code.toUpperCase().trim(),
+      name: editDepData.name.trim(),
+      managerName: editDepData.managerName?.trim() || '',
+      description: editDepData.description?.trim() || ''
+    };
+    setFormData(prev => ({
+      ...prev,
+      departments: prev.departments.map(d => d.id === updatedDep.id ? updatedDep : d)
+    }));
+    setEditingDepId(null);
+    setEditDepData(null);
+  };
+
+  const handleCancelEditDepartment = () => {
+    setEditingDepId(null);
+    setEditDepData(null);
+  };
+
+  // Position edit handlers
+  const handleStartEditPosition = (pos: Position) => {
+    setEditingPosId(pos.id);
+    setEditPosData({ ...pos });
+  };
+
+  const handleSaveEditPosition = () => {
+    if (!editPosData) return;
+    if (!editPosData.code.trim() || !editPosData.name.trim()) {
+      alert('Vui lòng nhập Mã và Tên chức vụ');
+      return;
+    }
+    const updatedPos: Position = {
+      ...editPosData,
+      code: editPosData.code.toUpperCase().trim(),
+      name: editPosData.name.trim(),
+      responsibilityAllowance: Number(editPosData.responsibilityAllowance) || 0
+    };
+    setFormData(prev => ({
+      ...prev,
+      positions: prev.positions.map(p => p.id === updatedPos.id ? updatedPos : p)
+    }));
+    setEditingPosId(null);
+    setEditPosData(null);
+  };
+
+  const handleCancelEditPosition = () => {
+    setEditingPosId(null);
+    setEditPosData(null);
+  };
+
+  // Holiday edit handlers
+  const handleStartEditHoliday = (hol: Holiday) => {
+    setEditingHolId(hol.id);
+    setEditHolData({ ...hol });
+  };
+
+  const handleSaveEditHoliday = () => {
+    if (!editHolData) return;
+    if (!editHolData.name.trim() || !editHolData.date.trim()) {
+      alert('Vui lòng nhập Ngày và Tên ngày nghỉ lễ');
+      return;
+    }
+    const updatedHol: Holiday = {
+      ...editHolData,
+      name: editHolData.name.trim(),
+      date: editHolData.date.trim()
+    };
+    setFormData(prev => ({
+      ...prev,
+      holidays: prev.holidays.map(h => h.id === updatedHol.id ? updatedHol : h)
+    }));
+    setEditingHolId(null);
+    setEditHolData(null);
+  };
+
+  const handleCancelEditHoliday = () => {
+    setEditingHolId(null);
+    setEditHolData(null);
   };
 
   return (
@@ -1112,24 +1218,114 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {formData.departments.map(d => (
-                  <tr key={d.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900">{d.code}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{d.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{d.managerName || '-'}</td>
-                    <td className="px-4 py-3 text-slate-500">{d.description || '-'}</td>
-                    <td className="px-4 py-3 text-right">
-                      {canEditSettings && (
-                        <button
-                          onClick={() => handleDeleteDepartment(d.id)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {formData.departments.map(d => {
+                  const isEditing = editingDepId === d.id && editDepData;
+                  return (
+                    <tr key={d.id} className={isEditing ? "bg-amber-50/60" : "hover:bg-slate-50 transition-colors"}>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editDepData.code}
+                            onChange={e => setEditDepData({ ...editDepData, code: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded font-mono font-bold uppercase text-slate-900 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            placeholder="Mã PB"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-slate-900">{d.code}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editDepData.name}
+                            onChange={e => setEditDepData({ ...editDepData, name: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded font-semibold text-slate-900 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            placeholder="Tên phòng ban"
+                          />
+                        ) : (
+                          <span className="font-semibold text-slate-800">{d.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editDepData.managerName || ''}
+                            onChange={e => setEditDepData({ ...editDepData, managerName: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded text-slate-700 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            placeholder="Trưởng phòng"
+                          />
+                        ) : (
+                          <span className="text-slate-600">{d.managerName || '-'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editDepData.description || ''}
+                            onChange={e => setEditDepData({ ...editDepData, description: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded text-slate-700 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            placeholder="Mô tả chức năng"
+                          />
+                        ) : (
+                          <span className="text-slate-500">{d.description || '-'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {canEditSettings && (
+                          <div className="flex items-center justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditDepartment}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold text-[11px] shadow-xs cursor-pointer transition-colors"
+                                  title="Lưu thay đổi"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Lưu</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditDepartment}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-semibold text-[11px] cursor-pointer transition-colors"
+                                  title="Hủy chỉnh sửa"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>Hủy</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditDepartment(d)}
+                                  className="flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded font-semibold text-[11px] transition-colors cursor-pointer"
+                                  title="Chỉnh sửa phòng ban"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  <span>Sửa</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDepartment(d.id)}
+                                  className="flex items-center gap-1 px-2 py-1 text-red-500 hover:bg-red-50 rounded font-semibold text-[11px] transition-colors cursor-pointer"
+                                  title="Xóa phòng ban"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1187,25 +1383,102 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {formData.positions.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900">{p.code}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{p.name}</td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">
-                      {formatVND(p.responsibilityAllowance)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {canEditSettings && (
-                        <button
-                          onClick={() => handleDeletePosition(p.id)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {formData.positions.map(p => {
+                  const isEditing = editingPosId === p.id && editPosData;
+                  return (
+                    <tr key={p.id} className={isEditing ? "bg-amber-50/60" : "hover:bg-slate-50 transition-colors"}>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editPosData.code}
+                            onChange={e => setEditPosData({ ...editPosData, code: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded font-mono font-bold uppercase text-slate-900 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            placeholder="Mã CV"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-slate-900">{p.code}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editPosData.name}
+                            onChange={e => setEditPosData({ ...editPosData, name: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded font-semibold text-slate-900 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            placeholder="Tên chức vụ"
+                          />
+                        ) : (
+                          <span className="font-semibold text-slate-800">{p.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editPosData.responsibilityAllowance}
+                            onChange={e => setEditPosData({ ...editPosData, responsibilityAllowance: Number(e.target.value) })}
+                            className="w-36 ml-auto px-2.5 py-1.5 border border-amber-300 rounded font-mono font-bold text-right text-emerald-700 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-emerald-700">
+                            {formatVND(p.responsibilityAllowance)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {canEditSettings && (
+                          <div className="flex items-center justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditPosition}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold text-[11px] shadow-xs cursor-pointer transition-colors"
+                                  title="Lưu thay đổi"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Lưu</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditPosition}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-semibold text-[11px] cursor-pointer transition-colors"
+                                  title="Hủy chỉnh sửa"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>Hủy</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditPosition(p)}
+                                  className="flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded font-semibold text-[11px] transition-colors cursor-pointer"
+                                  title="Chỉnh sửa chức vụ"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  <span>Sửa</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePosition(p.id)}
+                                  className="flex items-center gap-1 px-2 py-1 text-red-500 hover:bg-red-50 rounded font-semibold text-[11px] transition-colors cursor-pointer"
+                                  title="Xóa chức vụ"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1255,27 +1528,102 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {formData.holidays.map(h => (
-                  <tr key={h.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900">{h.date}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{h.name}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[11px]">
-                        Hưởng 100% Lương
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {canEditSettings && (
-                        <button
-                          onClick={() => handleDeleteHoliday(h.id)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {formData.holidays.map(h => {
+                  const isEditing = editingHolId === h.id && editHolData;
+                  return (
+                    <tr key={h.id} className={isEditing ? "bg-amber-50/60" : "hover:bg-slate-50 transition-colors"}>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="date"
+                            value={editHolData.date}
+                            onChange={e => setEditHolData({ ...editHolData, date: e.target.value })}
+                            className="px-2.5 py-1.5 border border-amber-300 rounded font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-slate-900">{h.date}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editHolData.name}
+                            onChange={e => setEditHolData({ ...editHolData, name: e.target.value })}
+                            className="w-full px-2.5 py-1.5 border border-amber-300 rounded font-semibold text-slate-900 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        ) : (
+                          <span className="font-semibold text-slate-800">{h.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isEditing ? (
+                          <select
+                            value={editHolData.isPaid ? 'true' : 'false'}
+                            onChange={e => setEditHolData({ ...editHolData, isPaid: e.target.value === 'true' })}
+                            className="px-2 py-1.5 border border-amber-300 rounded text-xs font-semibold bg-white"
+                          >
+                            <option value="true">Hưởng 100% Lương</option>
+                            <option value="false">Không hưởng lương</option>
+                          </select>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[11px]">
+                            {h.isPaid ? 'Hưởng 100% Lương' : 'Không hưởng lương'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {canEditSettings && (
+                          <div className="flex items-center justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditHoliday}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold text-[11px] shadow-xs cursor-pointer transition-colors"
+                                  title="Lưu thay đổi"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Lưu</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditHoliday}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-semibold text-[11px] cursor-pointer transition-colors"
+                                  title="Hủy chỉnh sửa"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>Hủy</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditHoliday(h)}
+                                  className="flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded font-semibold text-[11px] transition-colors cursor-pointer"
+                                  title="Chỉnh sửa ngày lễ"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  <span>Sửa</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteHoliday(h.id)}
+                                  className="flex items-center gap-1 px-2 py-1 text-red-500 hover:bg-red-50 rounded font-semibold text-[11px] transition-colors cursor-pointer"
+                                  title="Xóa ngày lễ"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

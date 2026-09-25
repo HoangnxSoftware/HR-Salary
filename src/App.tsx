@@ -147,11 +147,18 @@ function PayrollAppContent() {
       isEmployeeActiveInMonth(emp, settings.currentMonth, settings.currentYear)
     );
 
+    const currentMonthKey = `${settings.currentYear}-${String(settings.currentMonth).padStart(2, '0')}`;
     return activeEmployees.map(emp => {
-      const tk = timekeepings.find(t => t.employeeId === emp.id);
+      const tk = timekeepings.find(t => 
+        t.employeeId === emp.id && (
+          String(t.month) === currentMonthKey ||
+          (String(t.month) === String(settings.currentMonth) && (!t.year || t.year === settings.currentYear)) ||
+          (!t.month && settings.currentMonth === 9 && settings.currentYear === 2026)
+        )
+      );
       const ins = insurances.find(i => i.employeeId === emp.id);
-      const meal = mealRegistrations.find(m => m.employeeId === emp.id);
-      const empAllowances = specialAllowances.filter(a => a.employeeId === emp.id);
+      const meal = mealRegistrations.find(m => m.employeeId === emp.id && (m.month === currentMonthKey || !m.month));
+      const empAllowances = specialAllowances.filter(a => a.employeeId === emp.id && (a.month === currentMonthKey || !a.month));
       const empDependents = dependents.filter(d => d.employeeId === emp.id);
 
       return calculateEmployeePayroll(
@@ -194,6 +201,7 @@ function PayrollAppContent() {
     if (imported.insurances) setInsurances(imported.insurances);
     if (imported.mealRegistrations) setMealRegistrations(imported.mealRegistrations);
     if (imported.specialAllowances) setSpecialAllowances(imported.specialAllowances);
+    if (imported.timekeepings) setTimekeepings(imported.timekeepings);
   };
 
   // Handler: Apply new company clean blank database
@@ -230,10 +238,25 @@ function PayrollAppContent() {
       const fullData = await importFullDataFromGoogleSheets(spreadsheetId);
       if (fullData) {
         if (fullData.settings) {
-          setSettings(prev => ({ ...prev, ...fullData.settings }));
+          setSettings(fullData.settings);
         }
         if (fullData.employees) {
           setEmployees(fullData.employees);
+        }
+        if (fullData.dependents) {
+          setDependents(fullData.dependents);
+        }
+        if (fullData.insurances) {
+          setInsurances(fullData.insurances);
+        }
+        if (fullData.mealRegistrations) {
+          setMealRegistrations(fullData.mealRegistrations);
+        }
+        if (fullData.specialAllowances) {
+          setSpecialAllowances(fullData.specialAllowances);
+        }
+        if (fullData.timekeepings) {
+          setTimekeepings(fullData.timekeepings);
         }
         setSyncState(prev => ({
           ...prev,
@@ -359,13 +382,23 @@ function PayrollAppContent() {
   // Meal update
   const handleUpdateMeal = (meal: MealRegistration) => {
     setMealRegistrations(prev => {
-      const idx = prev.findIndex(m => m.id === meal.id);
+      const idx = prev.findIndex(m => m.id === meal.id || (m.employeeId === meal.employeeId && m.month === meal.month));
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = meal;
         return copy;
       }
       return [...prev, meal];
+    });
+  };
+
+  const handleBatchUpdateMeals = (meals: MealRegistration[]) => {
+    setMealRegistrations(prev => {
+      const map = new Map(prev.map(m => [`${m.employeeId}_${m.month || ''}`, m]));
+      meals.forEach(m => {
+        map.set(`${m.employeeId}_${m.month || ''}`, m);
+      });
+      return Array.from(map.values());
     });
   };
 
@@ -381,7 +414,11 @@ function PayrollAppContent() {
   // Timekeeping updates
   const handleUpdateTimekeeping = (tk: TimekeepingRecord) => {
     setTimekeepings(prev => {
-      const idx = prev.findIndex(t => t.id === tk.id);
+      const tkMonth = String(tk.month || `${settings.currentYear}-${String(settings.currentMonth).padStart(2, '0')}`);
+      const idx = prev.findIndex(t => 
+        t.id === tk.id || 
+        (t.employeeId === tk.employeeId && String(t.month || '') === tkMonth)
+      );
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = tk;
@@ -391,8 +428,14 @@ function PayrollAppContent() {
     });
   };
 
-  const handleBatchUpdateTimekeeping = (all: TimekeepingRecord[]) => {
-    setTimekeepings(all);
+  const handleBatchUpdateTimekeeping = (records: TimekeepingRecord[]) => {
+    setTimekeepings(prev => {
+      const map = new Map(prev.map(t => [`${t.employeeId}_${String(t.month || '')}`, t]));
+      records.forEach(t => {
+        map.set(`${t.employeeId}_${String(t.month || '')}`, t);
+      });
+      return Array.from(map.values());
+    });
   };
 
   // Payroll updates (status, advance)
@@ -520,8 +563,10 @@ function PayrollAppContent() {
               timekeepings={timekeepings}
               employees={employees}
               settings={settings}
+              mealRegistrations={mealRegistrations}
               onUpdateTimekeeping={handleUpdateTimekeeping}
               onBatchUpdateTimekeeping={handleBatchUpdateTimekeeping}
+              onMonthChange={handleMonthChange}
             />
           )}
 
@@ -569,6 +614,7 @@ function PayrollAppContent() {
               timekeepings={timekeepings}
               settings={settings}
               onUpdateMeal={handleUpdateMeal}
+              onBatchUpdateMeals={handleBatchUpdateMeals}
             />
           )}
 
