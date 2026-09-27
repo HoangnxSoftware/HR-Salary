@@ -53,6 +53,20 @@ export const PrintAnnualPayrollModal: React.FC<PrintAnnualPayrollModalProps> = (
     monthlyTotals[m] = annualData.reduce((sum, d) => sum + (d.monthlyNet[m] || 0), 0);
   }
 
+  // Tập hợp các số CCCD bị trùng lặp
+  const duplicateIdCards = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    annualData.forEach(d => {
+      const cccd = (d.employee.idCardNumber || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [annualData]);
+
   const currentDateStr = new Date().toLocaleDateString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
@@ -123,6 +137,7 @@ export const PrintAnnualPayrollModal: React.FC<PrintAnnualPayrollModalProps> = (
                   <tr className="bg-slate-100 font-bold text-slate-800">
                     <th className="border border-slate-400 p-1 w-7" rowSpan={2}>STT</th>
                     <th className="border border-slate-400 p-1 w-16" rowSpan={2}>Mã NV</th>
+                    <th className="border border-slate-400 p-1 text-center min-w-[85px]" rowSpan={2}>Số CCCD</th>
                     <th className="border border-slate-400 p-1 text-left min-w-[120px]" rowSpan={2}>Họ và Tên</th>
                     <th className="border border-slate-400 p-1 text-left min-w-[90px]" rowSpan={2}>Phòng Ban</th>
                     <th className="border border-slate-400 p-1 text-left min-w-[80px]" rowSpan={2}>Chức Vụ</th>
@@ -156,48 +171,60 @@ export const PrintAnnualPayrollModal: React.FC<PrintAnnualPayrollModalProps> = (
                   </tr>
                 </thead>
                 <tbody>
-                  {annualData.map((row, idx) => (
-                    <tr key={row.employee.id} className="hover:bg-slate-50">
-                      <td className="border border-slate-400 p-1">{idx + 1}</td>
-                      <td className="border border-slate-400 p-1 font-mono font-bold text-slate-800">{row.employee.employeeCode}</td>
-                      <td className="border border-slate-400 p-1 text-left font-bold text-slate-900">{row.employee.fullName}</td>
-                      <td className="border border-slate-400 p-1 text-left text-slate-700">{row.departmentName}</td>
-                      <td className="border border-slate-400 p-1 text-left text-slate-600">{row.positionName}</td>
+                  {annualData.map((row, idx) => {
+                    const isDuplicateCccd = row.employee.idCardNumber ? duplicateIdCards.has(row.employee.idCardNumber.trim()) : false;
 
-                      {/* 12 Months */}
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
-                        const val = row.monthlyNet[m];
-                        return (
-                          <td key={m} className="border border-slate-400 p-1 font-mono text-right text-[10px]">
-                            {val ? formatVND(val) : <span className="text-slate-300">-</span>}
-                          </td>
-                        );
-                      })}
+                    return (
+                      <tr key={row.employee.id} className="hover:bg-slate-50">
+                        <td className="border border-slate-400 p-1">{idx + 1}</td>
+                        <td className="border border-slate-400 p-1 font-mono font-bold text-slate-800">{row.employee.employeeCode}</td>
+                        <td className="border border-slate-400 p-1 font-mono text-center">
+                          <div className="font-semibold">{row.employee.idCardNumber || '—'}</div>
+                          {isDuplicateCccd && (
+                            <span className="text-[8px] font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded block mt-0.5 print:border print:border-amber-400">
+                              *Trùng CCCD
+                            </span>
+                          )}
+                        </td>
+                        <td className="border border-slate-400 p-1 text-left font-bold text-slate-900">{row.employee.fullName}</td>
+                        <td className="border border-slate-400 p-1 text-left text-slate-700">{row.departmentName}</td>
+                        <td className="border border-slate-400 p-1 text-left text-slate-600">{row.positionName}</td>
 
-                      <td className="border border-slate-400 p-1 font-mono text-right text-slate-800">
-                        {formatVND(row.totalBaseSalaryYear)}
-                      </td>
-                      <td className="border border-slate-400 p-1 font-mono text-right font-semibold text-slate-900">
-                        {formatVND(row.totalGrossYear)}
-                      </td>
-                      <td className="border border-slate-400 p-1 font-mono text-right text-slate-700">
-                        {formatVND(row.totalInsuranceEmpYear)}
-                      </td>
-                      <td className="border border-slate-400 p-1 font-mono text-right text-slate-700">
-                        {formatVND(row.totalTaxYear)}
-                      </td>
-                      <td className="border border-slate-400 p-1 font-mono text-right font-black text-emerald-700 bg-emerald-50/40">
-                        {formatVND(row.totalNetYear)}
-                      </td>
-                      <td className="border border-slate-400 p-1 font-mono text-right font-semibold text-slate-800">
-                        {formatVND(Math.round(row.avgMonthlyNet))}
-                      </td>
-                    </tr>
-                  ))}
+                        {/* 12 Months */}
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
+                          const val = row.monthlyNet[m];
+                          return (
+                            <td key={m} className="border border-slate-400 p-1 font-mono text-right text-[10px]">
+                              {val ? formatVND(val) : <span className="text-slate-300">-</span>}
+                            </td>
+                          );
+                        })}
+
+                        <td className="border border-slate-400 p-1 font-mono text-right text-slate-800">
+                          {formatVND(row.totalBaseSalaryYear)}
+                        </td>
+                        <td className="border border-slate-400 p-1 font-mono text-right font-semibold text-slate-900">
+                          {formatVND(row.totalGrossYear)}
+                        </td>
+                        <td className="border border-slate-400 p-1 font-mono text-right text-slate-700">
+                          {formatVND(row.totalInsuranceEmpYear)}
+                        </td>
+                        <td className="border border-slate-400 p-1 font-mono text-right text-slate-700">
+                          {formatVND(row.totalTaxYear)}
+                        </td>
+                        <td className="border border-slate-400 p-1 font-mono text-right font-black text-emerald-700 bg-emerald-50/40">
+                          {formatVND(row.totalNetYear)}
+                        </td>
+                        <td className="border border-slate-400 p-1 font-mono text-right font-semibold text-slate-800">
+                          {formatVND(Math.round(row.avgMonthlyNet))}
+                        </td>
+                      </tr>
+                    );
+                  })}
 
                   {/* Grand Total Row */}
                   <tr className="bg-slate-200 font-bold text-slate-900">
-                    <td colSpan={5} className="border border-slate-400 p-1 text-center uppercase tracking-wide">
+                    <td colSpan={6} className="border border-slate-400 p-1 text-center uppercase tracking-wide">
                       TỔNG CỘNG TOÀN CÔNG TY
                     </td>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (

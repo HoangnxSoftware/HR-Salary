@@ -55,6 +55,20 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
   const activeEmployees = employees.filter(e => isEmployeeActiveInMonth(e, month, year));
   const activeEmpIds = new Set(activeEmployees.map(e => e.id));
 
+  // Tập hợp các số CCCD bị trùng lặp
+  const duplicateIdCards = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
+
   // Summaries
   let grandTotalWorkDays = 0;
   let grandTotalPaidLeave = 0;
@@ -177,6 +191,7 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
                   <tr>
                     <th rowSpan={2} className="border border-slate-400 p-1 w-7">STT</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 min-w-[55px]">Mã NV</th>
+                    <th rowSpan={2} className="border border-slate-400 p-1 text-center min-w-[80px]">Số CCCD</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[120px]">Họ và Tên</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[80px]">Phòng Ban</th>
                     <th colSpan={daysInMonth} className="border border-slate-400 p-0.5">
@@ -224,10 +239,20 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
                 <tbody>
                   {activeEmployees.map((emp, idx) => {
                     const tk = tkMap.get(emp.id);
+                    const isDuplicateCccd = emp?.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
+
                     return (
                       <tr key={emp.id} className="hover:bg-slate-50">
                         <td className="border border-slate-400 p-0.5">{idx + 1}</td>
                         <td className="border border-slate-400 p-0.5 font-mono font-semibold">{emp.employeeCode}</td>
+                        <td className="border border-slate-400 p-0.5 font-mono text-center">
+                          <div className="font-semibold">{emp.idCardNumber || '—'}</div>
+                          {isDuplicateCccd && (
+                            <span className="text-[7px] font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded block mt-0.5 print:border print:border-amber-400">
+                              *Trùng CCCD
+                            </span>
+                          )}
+                        </td>
                         <td className="border border-slate-400 p-0.5 text-left font-semibold text-slate-900 truncate">
                           {emp.fullName}
                         </td>
@@ -294,7 +319,7 @@ export const PrintTimekeepingModal: React.FC<PrintTimekeepingModalProps> = ({
 
                   {/* Summary row */}
                   <tr className="bg-slate-200 font-bold text-slate-900">
-                    <td colSpan={4} className="border border-slate-400 p-1 text-center uppercase">
+                    <td colSpan={5} className="border border-slate-400 p-1 text-center uppercase">
                       TỔNG CỘNG ({employees.length} Nhân Sự)
                     </td>
                     <td colSpan={daysInMonth} className="border border-slate-400 p-1 text-slate-600 text-left pl-2">

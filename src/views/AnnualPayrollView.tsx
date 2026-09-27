@@ -12,7 +12,8 @@ import {
   Receipt, 
   Layers,
   ChevronRight,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   Employee, 
@@ -61,6 +62,22 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
 
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
   const posMap = new Map(settings.positions.map(p => [p.id, p.name]));
+
+  // Tập hợp các số CCCD bị trùng lặp giữa các nhân viên khác nhau
+  const duplicateIdCards = useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) {
+        counts.set(cccd, (counts.get(cccd) || 0) + 1);
+      }
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
 
   // Tính toán dữ liệu 12 tháng cho toàn bộ nhân viên trong năm được chọn
   const annualData: AnnualEmployeeData[] = useMemo(() => {
@@ -371,10 +388,11 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
               <thead>
                 <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-3 px-3 w-10 text-center">STT</th>
-                  <th className="py-3 px-3 min-w-[90px]">Mã NV</th>
-                  <th className="py-3 px-3 min-w-[150px]">Họ và Tên</th>
-                  <th className="py-3 px-3 min-w-[110px]">Phòng Ban</th>
-                  <th className="py-3 px-3 min-w-[120px]">Trạng Thái</th>
+                  <th className="py-3 px-3 min-w-[85px]">Mã NV</th>
+                  <th className="py-3 px-3 min-w-[105px]">Số CCCD</th>
+                  <th className="py-3 px-3 min-w-[140px]">Họ và Tên</th>
+                  <th className="py-3 px-3 min-w-[100px]">Phòng Ban</th>
+                  <th className="py-3 px-3 min-w-[110px]">Trạng Thái</th>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
                     <th key={m} className="py-3 px-2 text-right min-w-[75px] font-semibold text-slate-800">
                       T{m}
@@ -391,10 +409,24 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredData.map((row, idx) => {
                   const statusInfo = getEmployeeWorkStatusDetails(row.employee);
+                  const isDuplicateCccd = row.employee.idCardNumber ? duplicateIdCards.has(row.employee.idCardNumber.trim()) : false;
+
                   return (
                     <tr key={row.employee.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-2.5 px-3 text-center text-slate-400 font-mono">{idx + 1}</td>
                       <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{row.employee.employeeCode}</td>
+                      <td className="py-2.5 px-3 font-mono">
+                        <div className="font-semibold text-slate-900">{row.employee.idCardNumber || '—'}</div>
+                        {isDuplicateCccd && (
+                          <span 
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                            title="Số CCCD này trùng với một mã nhân viên khác trong danh sách"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                            Trùng CCCD
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3 font-bold text-slate-900">
                         {row.employee.fullName}
                       </td>
@@ -436,7 +468,7 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
 
                 {/* Company Grand Total Row */}
                 <tr className="bg-slate-200/90 font-bold text-slate-900 border-t-2 border-slate-300">
-                  <td colSpan={5} className="py-3 px-3 text-center uppercase tracking-wide">
+                  <td colSpan={6} className="py-3 px-3 text-center uppercase tracking-wide">
                     TỔNG CỘNG TOÀN CÔNG TY ({filteredData.length} LAO ĐỘNG)
                   </td>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
@@ -459,10 +491,11 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
               <thead>
                 <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-3 px-3 w-10 text-center">STT</th>
-                  <th className="py-3 px-3 min-w-[90px]">Mã NV</th>
-                  <th className="py-3 px-3 min-w-[150px]">Họ và Tên</th>
-                  <th className="py-3 px-3 min-w-[110px]">Phòng Ban</th>
-                  <th className="py-3 px-3 min-w-[120px]">Trạng Thái</th>
+                  <th className="py-3 px-3 min-w-[85px]">Mã NV</th>
+                  <th className="py-3 px-3 min-w-[105px]">Số CCCD</th>
+                  <th className="py-3 px-3 min-w-[140px]">Họ và Tên</th>
+                  <th className="py-3 px-3 min-w-[100px]">Phòng Ban</th>
+                  <th className="py-3 px-3 min-w-[110px]">Trạng Thái</th>
                   <th className="py-3 px-3 text-right min-w-[110px]">Tổng Lương CB</th>
                   <th className="py-3 px-3 text-right min-w-[115px]">Tổng Gross Năm</th>
                   <th className="py-3 px-3 text-right min-w-[100px]">Tổng Tiền OT</th>
@@ -477,10 +510,24 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredData.map((row, idx) => {
                   const statusInfo = getEmployeeWorkStatusDetails(row.employee);
+                  const isDuplicateCccd = row.employee.idCardNumber ? duplicateIdCards.has(row.employee.idCardNumber.trim()) : false;
+
                   return (
                     <tr key={row.employee.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-2.5 px-3 text-center text-slate-400 font-mono">{idx + 1}</td>
                       <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{row.employee.employeeCode}</td>
+                      <td className="py-2.5 px-3 font-mono">
+                        <div className="font-semibold text-slate-900">{row.employee.idCardNumber || '—'}</div>
+                        {isDuplicateCccd && (
+                          <span 
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                            title="Số CCCD này trùng với một mã nhân viên khác trong danh sách"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                            Trùng CCCD
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3 font-bold text-slate-900">{row.employee.fullName}</td>
                       <td className="py-2.5 px-3 text-slate-600">{row.departmentName}</td>
                       <td className="py-2.5 px-3">
@@ -520,7 +567,7 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
 
                 {/* Company Grand Total Row */}
                 <tr className="bg-slate-200/90 font-bold text-slate-900 border-t-2 border-slate-300">
-                  <td colSpan={5} className="py-3 px-3 text-center uppercase tracking-wide">
+                  <td colSpan={6} className="py-3 px-3 text-center uppercase tracking-wide">
                     TỔNG CỘNG TOÀN CÔNG TY
                   </td>
                   <td className="py-3 px-3 text-right font-mono font-bold">

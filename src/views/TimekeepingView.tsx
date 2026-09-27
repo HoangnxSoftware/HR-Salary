@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   CalendarCheck, 
   Calendar,
@@ -172,6 +172,22 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
 
   const empMap = new Map(employees.map(e => [e.id, e]));
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
+
+  // Tập hợp các số CCCD bị trùng lặp giữa các nhân viên khác nhau
+  const duplicateIdCards = useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) {
+        counts.set(cccd, (counts.get(cccd) || 0) + 1);
+      }
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
 
   // Helper kiểm tra bản ghi chấm công có thuộc tháng/năm đang chọn hay không
   const isRecordForMonth = (t: TimekeepingRecord, m: number, y: number) => {
@@ -1437,8 +1453,9 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
             <table className="w-full text-center text-xs border-collapse">
               <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-300 sticky top-0">
                 <tr>
-                  <th className="p-2 border-r border-slate-200 text-left min-w-[70px] sticky left-0 bg-slate-100 z-10">Mã NV</th>
-                  <th className="p-2 border-r border-slate-200 text-left min-w-[150px] sticky left-[70px] bg-slate-100 z-10">Họ và Tên</th>
+                  <th className="p-2 border-r border-slate-200 text-left min-w-[65px] sticky left-0 bg-slate-100 z-10">Mã NV</th>
+                  <th className="p-2 border-r border-slate-200 text-center min-w-[95px] sticky left-[65px] bg-slate-100 z-10">Số CCCD</th>
+                  <th className="p-2 border-r border-slate-200 text-left min-w-[130px] sticky left-[160px] bg-slate-100 z-10">Họ và Tên</th>
                   
                   {/* Days 1..31 */}
                   {daysArray.map(d => {
@@ -1476,20 +1493,33 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={daysArray.length + 10} className="p-8 text-center text-slate-400">
+                    <td colSpan={daysArray.length + 11} className="p-8 text-center text-slate-400">
                       Không tìm thấy nhân viên nào phù hợp với bộ lọc hiện tại.
                     </td>
                   </tr>
                 ) : (
                   filteredEmployees.map(emp => {
                     const tk = getEmployeeTimekeeping(emp.id);
+                    const isDuplicateCccd = emp.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
 
                     return (
                       <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-2 text-left font-mono font-bold text-slate-800 border-r border-slate-200 sticky left-0 bg-white z-10">
                           {emp.employeeCode}
                         </td>
-                        <td className="p-2 text-left font-semibold text-slate-900 border-r border-slate-200 sticky left-[70px] bg-white z-10 whitespace-nowrap">
+                        <td className="p-2 text-center font-mono border-r border-slate-200 sticky left-[65px] bg-white z-10">
+                          <div className="font-semibold text-slate-900">{emp.idCardNumber || '—'}</div>
+                          {isDuplicateCccd && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                              title="Số CCCD này trùng với một lao động khác trong danh sách (khác Mã NV)"
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                              Trùng CCCD
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2 text-left font-semibold text-slate-900 border-r border-slate-200 sticky left-[160px] bg-white z-10 whitespace-nowrap">
                           <div>{emp.fullName}</div>
                           <div className="text-[10px] text-slate-400 font-normal">{depMap.get(emp.departmentId)}</div>
                         </td>
@@ -1628,6 +1658,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                 <tr>
                   <th className="px-4 py-3">Ngày & Thứ</th>
                   <th className="px-4 py-3">Mã NV</th>
+                  <th className="px-4 py-3">Số CCCD</th>
                   <th className="px-4 py-3">Họ và Tên</th>
                   <th className="px-4 py-3">Phòng Ban</th>
                   <th className="px-4 py-3 text-center">Công</th>
@@ -1644,7 +1675,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {overtimeLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="p-8 text-center text-slate-400">
+                    <td colSpan={14} className="p-8 text-center text-slate-400">
                       Không có bản ghi ca làm việc hoặc làm thêm giờ nào theo bộ lọc hiện tại.
                     </td>
                   </tr>
@@ -1652,6 +1683,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                   overtimeLogs.map(log => {
                     const emp = empMap.get(log.employeeId);
                     const hasOt = log.otHours > 0;
+                    const isDuplicateCccd = emp?.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
 
                     return (
                       <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1661,6 +1693,18 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                         </td>
                         <td className="px-4 py-3 font-mono font-bold text-slate-700">
                           {emp?.employeeCode}
+                        </td>
+                        <td className="px-4 py-3 font-mono">
+                          <div className="font-semibold text-slate-900">{emp?.idCardNumber || '—'}</div>
+                          {isDuplicateCccd && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                              title="Số CCCD này trùng với một lao động khác trong danh sách (khác Mã NV)"
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                              Trùng CCCD
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">
                           {emp?.fullName}
@@ -1952,7 +1996,8 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                     <tr>
                       <th className="px-3 py-3 w-12 text-center">STT</th>
                       <th className="px-3 py-3 w-24">Mã NV</th>
-                      <th className="px-4 py-3 min-w-[170px]">Họ và Tên</th>
+                      <th className="px-3 py-3 w-28">Số CCCD</th>
+                      <th className="px-4 py-3 min-w-[160px]">Họ và Tên</th>
                       <th className="px-3 py-3">Phòng Ban</th>
                       <th className="px-3 py-3 text-center">Ca / Công Ngày</th>
                       <th className="px-3 py-3 min-w-[150px]">Đăng Ký Tháng</th>
@@ -1985,13 +2030,14 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {filteredEmployees.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
+                        <td colSpan={12} className="px-4 py-12 text-center text-slate-400">
                           Không tìm thấy nhân viên nào phù hợp.
                         </td>
                       </tr>
                     ) : (
                       filteredEmployees.map((emp, idx) => {
                         const tk = getEmployeeTimekeeping(emp.id);
+                        const isDuplicateCccd = emp.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
                         const dayData = tk?.days[selectedMealDay];
                         const symbol = dayData?.symbol || '';
                         const shift = dayData?.shift;
@@ -2025,9 +2071,20 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                             <td className="px-3 py-3 font-mono font-bold text-slate-700">
                               {emp.employeeCode}
                             </td>
+                            <td className="px-3 py-3 font-mono">
+                              <div className="font-semibold text-slate-900">{emp.idCardNumber || '—'}</div>
+                              {isDuplicateCccd && (
+                                <span 
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                                  title="Số CCCD này trùng với một lao động khác trong danh sách (khác Mã NV)"
+                                >
+                                  <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                                  Trùng CCCD
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 font-medium text-slate-900">
                               <div className="font-semibold text-slate-900">{emp.fullName}</div>
-                              <div className="text-[10px] text-slate-400">{emp.idCardNumber || ''}</div>
                             </td>
                             <td className="px-3 py-3 text-slate-600">
                               {depMap.get(emp.departmentId) || '-'}

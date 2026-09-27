@@ -26,6 +26,20 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
   const posMap = new Map(settings.positions.map(p => [p.id, p.name]));
 
+  // Tập hợp các số CCCD bị trùng lặp
+  const duplicateIdCards = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
+
   // Totals
   const totalBaseSalary = employees.reduce((sum, e) => sum + e.baseSalary, 0);
   const totalMainSalary = payrolls.reduce((sum, p) => sum + p.mainSalary, 0);
@@ -121,6 +135,7 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
                 <tr>
                   <th rowSpan={2} className="border border-slate-400 p-1">STT</th>
                   <th rowSpan={2} className="border border-slate-400 p-1">Mã NV</th>
+                  <th rowSpan={2} className="border border-slate-400 p-1 text-center min-w-[85px]">Số CCCD</th>
                   <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[110px]">Họ và Tên</th>
                   <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[80px]">Chức Vụ</th>
                   <th rowSpan={2} className="border border-slate-400 p-1 min-w-[85px] bg-slate-200/70">Hình thức lương</th>
@@ -151,10 +166,20 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
               <tbody>
                 {payrolls.map((p, idx) => {
                   const emp = empMap.get(p.employeeId);
+                  const isDuplicateCccd = emp?.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
+
                   return (
                     <tr key={p.id} className="hover:bg-slate-50">
                       <td className="border border-slate-300 p-1 font-mono">{idx + 1}</td>
                       <td className="border border-slate-300 p-1 font-mono font-bold">{emp?.employeeCode}</td>
+                      <td className="border border-slate-300 p-1 font-mono text-center">
+                        <div className="font-semibold">{emp?.idCardNumber || '—'}</div>
+                        {isDuplicateCccd && (
+                          <span className="text-[8px] font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded block mt-0.5 print:border print:border-amber-400">
+                            *Trùng CCCD
+                          </span>
+                        )}
+                      </td>
                       <td className="border border-slate-300 p-1 text-left font-semibold">{emp?.fullName}</td>
                       <td className="border border-slate-300 p-1 text-left">{posMap.get(emp?.positionId || '')}</td>
                       <td className="border border-slate-300 p-1 text-left font-medium text-slate-800">
@@ -211,7 +236,7 @@ export const PrintPayrollModal: React.FC<PrintPayrollModalProps> = ({
               </tbody>
               <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-800 text-slate-900">
                 <tr>
-                  <td colSpan={5} className="border border-slate-400 p-1.5 text-center uppercase">TỔNG CỘNG</td>
+                  <td colSpan={6} className="border border-slate-400 p-1.5 text-center uppercase">TỔNG CỘNG</td>
                   <td className="border border-slate-400 p-1.5 text-right font-mono">{formatVND(totalBaseSalary)}</td>
                   <td className="border border-slate-400 p-1.5">-</td>
                   <td className="border border-slate-400 p-1.5 text-right font-mono">{formatVND(totalMainSalary)}</td>

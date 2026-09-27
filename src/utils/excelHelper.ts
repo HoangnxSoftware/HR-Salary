@@ -159,6 +159,7 @@ export const exportTimekeepingToExcel = (
     const emp = empMap.get(tk.employeeId);
     const rowObj: any = {
       'Mã Nhân Viên': emp?.employeeCode || '',
+      'Số CCCD': emp?.idCardNumber || '',
       'Họ và Tên': emp?.fullName || '',
     };
 
@@ -263,6 +264,7 @@ export const exportPayrollToExcel = (
     return {
       'STT': idx + 1,
       'Mã Nhân Viên': emp?.employeeCode || '',
+      'Số CCCD': emp?.idCardNumber || '',
       'Họ và Tên': emp?.fullName || '',
       'Phòng Ban': depMap.get(emp?.departmentId || '') || '',
       'Chức Vụ': posMap.get(emp?.positionId || '') || '',
@@ -630,6 +632,7 @@ export const exportAnnualPayrollToExcel = (
   const excelRows = annualData.map((row, idx) => ({
     'STT': idx + 1,
     'Mã Nhân Viên': row.employee.employeeCode,
+    'Số CCCD': row.employee.idCardNumber || '',
     'Họ và Tên': row.employee.fullName,
     'Phòng Ban': row.departmentName,
     'Chức Vụ': row.positionName,

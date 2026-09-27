@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   FileSpreadsheet, 
   Printer, 
@@ -14,7 +14,8 @@ import {
   Cloud,
   ChevronRight,
   User,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   PayrollRecord, 
@@ -61,6 +62,22 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
   const empMap = new Map(employees.map(e => [e.id, e]));
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
   const posMap = new Map(settings.positions.map(p => [p.id, p.name]));
+
+  // Tập hợp các số CCCD bị trùng lặp giữa các nhân viên khác nhau
+  const duplicateIdCards = useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) {
+        counts.set(cccd, (counts.get(cccd) || 0) + 1);
+      }
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
 
   // Nếu là vai trò Employee, chỉ xem phiếu lương của chính mình
   const displayPayrolls = currentUserRole === 'employee'
@@ -248,6 +265,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
             <thead className="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-300">
               <tr>
                 <th className="px-3 py-3">Mã NV</th>
+                <th className="px-3 py-3">Số CCCD</th>
                 <th className="px-3 py-3">Họ và Tên</th>
                 <th className="px-3 py-3">Phòng Ban</th>
                 <th className="px-3 py-3">Hình Thức</th>
@@ -269,19 +287,34 @@ export const PayrollView: React.FC<PayrollViewProps> = ({
             <tbody className="divide-y divide-slate-100">
               {displayPayrolls.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={16} className="px-6 py-8 text-center text-slate-400">
                     Không có bản ghi bảng lương nào phù hợp.
                   </td>
                 </tr>
               ) : (
                 displayPayrolls.map(p => {
                   const emp = empMap.get(p.employeeId);
+                  const isDuplicateCccd = emp?.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
                   const totalOtAndAllowances = p.otPayTaxable + p.otPayTaxExempt + p.taxableAllowances + p.taxExemptAllowances + p.mealAllowance;
 
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-3 py-3 font-mono font-bold text-slate-800">
                         {emp?.employeeCode}
+                      </td>
+                      <td className="px-3 py-3 font-mono">
+                        <div className="font-semibold text-slate-900">
+                          {emp?.idCardNumber || '—'}
+                        </div>
+                        {isDuplicateCccd && (
+                          <span 
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                            title="Số CCCD này trùng với một lao động khác trong danh sách (khác Mã NV)"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                            Trùng CCCD
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 font-bold text-slate-900">
                         <div>{emp?.fullName}</div>
