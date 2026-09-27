@@ -54,6 +54,14 @@ export const initialSettings: SystemSettings = {
   personalDeduction: 15500000, // 15,500,000 VND (Mức giảm trừ bản thân quy định mới)
   dependentDeduction: 6200000, // 6,200,000 VND (Mức giảm trừ người phụ thuộc quy định mới)
   taxBrackets: DEFAULT_TAX_BRACKETS, // Biểu thuế TNCN 5 bậc theo quy định hiện hành
+  
+  // Cấu hình phương thức khấu trừ % thuế tại nguồn (mặc định 10%, có thể chỉnh sửa)
+  taxWithholdingRateResident: 10, // 10% trước khi trả thu nhập nếu không ký HĐ hoặc HĐ dưới 3 tháng
+  taxWithholdingThreshold: 5000000, // Ngưỡng chi trả từ 5,000,000 đ/lần trở lên; dưới 5tr chỉ khấu trừ khi có yêu cầu
+  taxWithholdingRateNonResident: 20, // 20% trên thu nhập đối với cá nhân không cư trú
+  defaultTaxMethod: 'progressive', // Mặc định: Theo biểu lũy tiến
+  monthlyEmployeeTaxMethods: {}, // Lưu lựa chọn phương thức tính thuế theo tháng của từng NV
+
   taxExemptionRules: DEFAULT_TAX_EXEMPTION_RULES, // Quy định miễn thuế TNCN (OT trần 40h/tháng & 200h/năm, ăn ca 1.200.000 đ)
   
   socialInsRateEmployee: 8.0,
@@ -127,7 +135,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 45000000,
     bankAccount: '1902888999888',
     bankName: 'Techcombank - Chi nhánh Thăng Long',
-    taxId: '8021155990',
+    taxId: '001085008821',
   },
   {
     id: 'emp-002',
@@ -148,7 +156,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 28000000,
     bankAccount: '0021000334455',
     bankName: 'Vietcombank - Chi nhánh Hà Nội',
-    taxId: '8122334455',
+    taxId: '001188006742',
   },
   {
     id: 'emp-003',
@@ -169,7 +177,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 32000000,
     bankAccount: '101566778899',
     bankName: 'MB Bank - Chi nhánh Mỹ Đình',
-    taxId: '8344556677',
+    taxId: '036090004190',
   },
   {
     id: 'emp-004',
@@ -190,7 +198,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 22000000,
     bankAccount: '1241000889922',
     bankName: 'BIDV - Chi nhánh Quang Trung',
-    taxId: '8455667788',
+    taxId: '025095005561',
   },
   {
     id: 'emp-005',
@@ -211,7 +219,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 14000000,
     bankAccount: '190333221100',
     bankName: 'Techcombank - Chi nhánh Cầu Giấy',
-    taxId: '8566778899',
+    taxId: '017196009310',
   },
   {
     id: 'emp-006',
@@ -233,7 +241,7 @@ export const initialEmployees: Employee[] = [
     salaryPercent: 120, // Đạt 120% KPI
     bankAccount: '0451000778899',
     bankName: 'Vietcombank - Chi nhánh Thành Công',
-    taxId: '8677889900',
+    taxId: '001198003874',
   },
   {
     id: 'emp-007',
@@ -254,7 +262,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 16000000,
     bankAccount: '1500205889911',
     bankName: 'Agribank - Chi nhánh Mê Linh',
-    taxId: '8788990011',
+    taxId: '034091001256',
   },
   {
     id: 'emp-008',
@@ -276,7 +284,7 @@ export const initialEmployees: Employee[] = [
     hourlyRate: 50000, // 50.000 đ/giờ làm việc thực tế
     bankAccount: '190344556677',
     bankName: 'Techcombank - Chi nhánh Đông Anh',
-    taxId: '8899001122',
+    taxId: '026199008923',
   },
   {
     id: 'emp-009',
@@ -291,15 +299,13 @@ export const initialEmployees: Employee[] = [
     email: 'dang.vh@vietthanh.vn',
     departmentId: 'dep-tech',
     positionId: 'pos-dev',
-    workStatus: 'probation',
-    startDate: '2026-08-01',
-    probationStartDate: '2026-08-01',
-    probationEndDate: '2026-09-30',
+    workStatus: 'active',
+    startDate: '2026-01-01',
     salaryBasis: 'monthly',
     baseSalary: 16000000,
     bankAccount: '190377889911',
     bankName: 'Techcombank',
-    taxId: '8911223344',
+    taxId: '001099002041',
   },
   {
     id: 'emp-010',
@@ -322,7 +328,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 12000000,
     bankAccount: '102866993311',
     bankName: 'VietinBank',
-    taxId: '8922334455',
+    taxId: '024197004512',
   },
   {
     id: 'emp-011',
@@ -346,7 +352,7 @@ export const initialEmployees: Employee[] = [
     baseSalary: 15000000,
     bankAccount: '001100445566',
     bankName: 'Vietcombank',
-    taxId: '8933445566',
+    taxId: '031093003901',
   },
   {
     id: 'emp-012',
@@ -368,30 +374,28 @@ export const initialEmployees: Employee[] = [
     baseSalary: 11000000,
     bankAccount: '190255443322',
     bankName: 'Techcombank',
-    taxId: '8944556677',
+    taxId: '019092007819',
   },
   {
     id: 'emp-013',
-    employeeCode: 'DEV-2041-B',
-    fullName: 'Hoàng Quốc Việt',
-    idCardNumber: '001099002041', // Trùng số CCCD với Vũ Hải Đăng (DEV-2041)
-    birthDate: '1998-04-18',
+    employeeCode: 'NVKD-2041',
+    fullName: 'Vũ Hải Đăng',
+    idCardNumber: '001099002041', // Trùng số CCCD với Vũ Hải Đăng (DEV-2041) do chuyển vị trí sang Kinh doanh tạo mã mới
+    birthDate: '1999-10-15',
     issueDate: '2023-08-10',
     issuePlace: 'Cục Cảnh sát QLHC về TTXH',
-    address: 'Số 88 Cầu Giấy, P. Quan Hoa, Cầu Giấy, Hà Nội',
-    phoneNumber: '0973998822',
-    email: 'viet.hq@vietthanh.vn',
-    departmentId: 'dep-tech',
-    positionId: 'pos-dev',
-    workStatus: 'probation',
+    address: 'Số 12 Chùa Láng, Đống Đa, Hà Nội',
+    phoneNumber: '0978114477',
+    email: 'dang.vh@vietthanh.vn',
+    departmentId: 'dep-kd',
+    positionId: 'pos-nvkd',
+    workStatus: 'active',
     startDate: '2026-09-01',
-    probationStartDate: '2026-09-01',
-    probationEndDate: '2026-10-31',
     salaryBasis: 'monthly',
-    baseSalary: 17500000,
+    baseSalary: 18000000,
     bankAccount: '190366882211',
     bankName: 'Techcombank - Chi nhánh Cầu Giấy',
-    taxId: '8955667788',
+    taxId: '001099002041',
   }
 ];
 

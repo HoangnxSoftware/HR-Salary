@@ -10,7 +10,8 @@ import {
   FixedDaysOffPolicy,
   Holiday,
   TaxBracket,
-  TaxExemptionRules
+  TaxExemptionRules,
+  TaxCalculationMethod
 } from '../types';
 
 /**
@@ -686,11 +687,47 @@ export const calculateEmployeePayroll = (
   // Các khoản giảm trừ tính thuế = Bản thân + Người phụ thuộc + BHXH cá nhân đóng
   const totalDeductionsForTax = personalDeduction + dependentDeduction + totalInsuranceEmp;
   
-  // Thu nhập tính thuế
-  const assessableIncome = Math.max(0, taxableIncome - totalDeductionsForTax);
+  // 8.1 Phương thức tính thuế TNCN (Lũy tiến 5 bậc hoặc Khấu trừ % tại nguồn)
+  const methodKey = `${currentMonthStr}_${employee.id}`;
+  const taxCalculationMethod: TaxCalculationMethod = settings?.monthlyEmployeeTaxMethods?.[methodKey] || settings?.defaultTaxMethod || 'progressive';
   
-  // Thuế TNCN (áp dụng theo biểu lũy tiến từng phần đã cấu hình - mặc định 5 bậc)
-  const personalIncomeTax = calculatePersonalIncomeTax(assessableIncome, settings?.taxBrackets);
+  let assessableIncome = 0;
+  let personalIncomeTax = 0;
+  let taxWithholdingRateApplied = 0;
+
+  if (taxCalculationMethod === 'progressive') {
+    // 1. Theo Biểu Lũy Tiến Từng Phần (Mặc định cho HĐLĐ từ 3 tháng trở lên)
+    assessableIncome = Math.max(0, taxableIncome - totalDeductionsForTax);
+    personalIncomeTax = calculatePersonalIncomeTax(assessableIncome, settings?.taxBrackets);
+    taxWithholdingRateApplied = 0;
+  } else if (taxCalculationMethod === 'withholding_non_resident') {
+    // 2. Cá nhân không cư trú: Áp dụng mức thuế suất cố định 20% trên thu nhập từ tiền lương, tiền công
+    const nonResidentRate = settings?.taxWithholdingRateNonResident ?? 20;
+    taxWithholdingRateApplied = nonResidentRate;
+    assessableIncome = taxableIncome;
+    personalIncomeTax = Math.round(taxableIncome * (nonResidentRate / 100));
+  } else if (taxCalculationMethod === 'withholding_request') {
+    // 3. Khấu trừ 10% tại nguồn theo yêu cầu cá nhân (Mức chi trả dưới 5.000.000 đồng/lần)
+    const withholdingRate = settings?.taxWithholdingRateResident ?? 10;
+    taxWithholdingRateApplied = withholdingRate;
+    assessableIncome = taxableIncome;
+    personalIncomeTax = Math.round(taxableIncome * (withholdingRate / 100));
+  } else {
+    // 4. withholding_resident: Không ký HĐLĐ hoặc ký dưới 03 tháng
+    // - Mức chi trả từ 5.000.000 đồng/lần trở lên: Khấu trừ theo tỷ lệ 10% trước khi trả thu nhập
+    // - Dưới 5.000.000 đồng/lần: Chỉ khấu trừ 10% khi cá nhân có yêu cầu (đã có tùy chọn riêng ở trên)
+    const withholdingRate = settings?.taxWithholdingRateResident ?? 10;
+    const threshold = settings?.taxWithholdingThreshold ?? 5000000;
+    taxWithholdingRateApplied = withholdingRate;
+    assessableIncome = taxableIncome;
+
+    if (taxableIncome >= threshold || grossIncome >= threshold) {
+      personalIncomeTax = Math.round(taxableIncome * (withholdingRate / 100));
+    } else {
+      // Dưới 5 triệu không khấu trừ thuế tại nguồn
+      personalIncomeTax = 0;
+    }
+  }
   
   // 9. Thực lĩnh (Net Salary)
   // Thực lĩnh = Gross - BHXH người lao động - Thuế TNCN - Tạm ứng - Khấu trừ khác
@@ -737,6 +774,8 @@ export const calculateEmployeePayroll = (
     taxableIncome,
     assessableIncome,
     personalIncomeTax,
+    taxCalculationMethod,
+    taxWithholdingRateApplied,
     advancePayment: advanceAmount,
     mealDeduction,
     tradeUnionEmp: 0,
@@ -906,4 +945,262 @@ export const getEmployeeWorkStatusDetails = (employee: Employee): {
       };
   }
 };
+
+/**
+ * Biểu thuế lũy tiến từng phần theo NĂM (quy đổi từ biểu tháng x 12 tháng)
+ * Áp dụng khi quyết toán thuế TNCN cuối năm
+ */
+export const calculateAnnualPersonalIncomeTax = (
+  annualAssessableIncome: number,
+  brackets?: TaxBracket[]
+): number => {
+  if (annualAssessableIncome <= 0) return 0;
+
+  const activeBrackets = brackets && brackets.length > 0 ? brackets : DEFAULT_TAX_BRACKETS;
+  const sorted = [...activeBrackets].sort((a, b) => a.min - b.min);
+  let totalTax = 0;
+
+  for (const b of sorted) {
+    const rateDecimal = b.rate > 1 ? b.rate / 100 : b.rate;
+    const annualMin = b.min * 12;
+    const annualMax = (b.max === null || b.max === undefined || b.max === Infinity || b.max <= 0) 
+      ? Infinity 
+      : b.max * 12;
+
+    if (annualAssessableIncome > annualMin) {
+      const taxableInBracket = Math.min(annualAssessableIncome, annualMax) - annualMin;
+      if (taxableInBracket > 0) {
+        totalTax += Math.round(taxableInBracket * rateDecimal);
+      }
+    }
+  }
+
+  return Math.round(totalTax);
+};
+
+export interface AnnualTaxMonthDetail {
+  month: number;
+  grossIncome: number;
+  taxableIncome: number;
+  assessableIncome: number;
+  deductions: number;
+  taxWithheld: number;
+  taxMethod: TaxCalculationMethod;
+}
+
+export interface CombinedAnnualTaxRecord {
+  id: string; // Số CCCD / Mã định danh thuế chính
+  taxId: string; // Số CCCD chính là mã số thuế TNCN
+  idCardNumber: string;
+  fullName: string;
+  employeeCodes: string[]; // Danh sách mã NV gộp (ví dụ: DEV-2041, NVKD-2041)
+  employeeIds: string[];
+  departmentNames: string[];
+  positionNames: string[];
+  hasMultipleCodes: boolean; // Trùng CCCD khác mã NV
+  
+  // Chi tiết số thuế TNCN bị khấu trừ từng tháng (Tháng 1 đến Tháng 12)
+  monthsDetail: Record<number, AnnualTaxMonthDetail>;
+  monthlyTaxWithheld: Record<number, number>; // key 1..12 -> số thuế TNCN bị khấu trừ
+
+  // Tổng hợp cả năm
+  totalMonthsActive: number;
+  totalGrossIncomeYear: number;
+  totalTaxableIncomeYear: number; // Tổng thu nhập chịu thuế cả năm
+  totalPersonalDeductionYear: number;
+  totalDependentDeductionYear: number;
+  totalInsuranceDeductionYear: number;
+  totalDeductionsYear: number;
+  
+  totalAssessableIncomeYear: number;
+  totalTaxWithheldYear: number; // Tổng số thuế TNCN bị khấu trừ cả năm (Tổng 12 tháng)
+  annualPayableTax: number; // Thuế TNCN tính theo Tổng thu nhập chịu thuế cả năm (quyết toán năm)
+  taxDifference: number; // Chênh lệch giữa tổng số bị khấu trừ và thuế TNCN phải nộp theo năm
+  // taxDifference > 0: Nộp thừa (Được hoàn thuế)
+  // taxDifference < 0: Nộp thiếu (Cần nộp thêm)
+  // taxDifference = 0: Khớp đúng
+}
+
+/**
+ * Tính toán báo cáo thuế TNCN cả năm (Quyết toán thuế TNCN năm)
+ * TÍNH GỘP THU NHẬP của những lao động trùng Căn cước công dân (Mã số thuế) nhưng khác mã NV
+ */
+export const calculateCombinedAnnualTaxReport = (
+  employees: Employee[],
+  timekeepings: TimekeepingRecord[],
+  insurances: InsuranceRecord[],
+  mealRegistrations: MealRegistration[],
+  specialAllowances: SpecialAllowance[],
+  dependents: Dependent[],
+  settings: SystemSettings,
+  targetYear?: number
+): CombinedAnnualTaxRecord[] => {
+  const year = targetYear || settings.currentYear;
+  const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
+  const posMap = new Map(settings.positions.map(p => [p.id, p.name]));
+
+  // 1. Nhóm nhân viên theo số Căn cước công dân (Mã số thuế TNCN chính là số CCCD)
+  const cccdGroups = new Map<string, Employee[]>();
+
+  employees.forEach(emp => {
+    // Mã số thuế TNCN chính là số Căn cước công dân
+    const cccdKey = (emp.idCardNumber || emp.taxId || emp.employeeCode).trim();
+    if (!cccdGroups.has(cccdKey)) {
+      cccdGroups.set(cccdKey, []);
+    }
+    cccdGroups.get(cccdKey)!.push(emp);
+  });
+
+  const reportRecords: CombinedAnnualTaxRecord[] = [];
+
+  cccdGroups.forEach((groupEmps, cccd) => {
+    const primaryEmp = groupEmps[0];
+    const employeeCodes = Array.from(new Set(groupEmps.map(e => e.employeeCode)));
+    const employeeIds = groupEmps.map(e => e.id);
+    const departmentNames = Array.from(new Set(groupEmps.map(e => depMap.get(e.departmentId) || '').filter(Boolean)));
+    const positionNames = Array.from(new Set(groupEmps.map(e => posMap.get(e.positionId) || '').filter(Boolean)));
+    const hasMultipleCodes = employeeCodes.length > 1;
+
+    // Chi tiết 12 tháng
+    const monthsDetail: Record<number, AnnualTaxMonthDetail> = {};
+    const monthlyTaxWithheld: Record<number, number> = {};
+
+    let totalGrossIncomeYear = 0;
+    let totalTaxableIncomeYear = 0;
+    let totalPersonalDeductionYear = 0;
+    let totalDependentDeductionYear = 0;
+    let totalInsuranceDeductionYear = 0;
+    let totalTaxWithheldYear = 0;
+    let activeMonthsCount = 0;
+
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = `${year}-${String(m).padStart(2, '0')}`;
+      let monthGross = 0;
+      let monthTaxable = 0;
+      let monthAssessable = 0;
+      let monthDeductions = 0;
+      let monthTaxWithheld = 0;
+      let hasActiveInMonth = false;
+      let primaryMethod: TaxCalculationMethod = 'progressive';
+
+      // Tính gộp thu nhập của tất cả các mã NV có cùng CCCD trong tháng m
+      groupEmps.forEach(emp => {
+        if (!isEmployeeActiveInMonth(emp, m, year)) return;
+
+        hasActiveInMonth = true;
+
+        const tk = timekeepings.find(t =>
+          t.employeeId === emp.id && (
+            String(t.month) === monthStr ||
+            (Number(t.month) === m && (!t.year || t.year === year)) ||
+            (String(t.month) === String(m) && (!t.year || t.year === year)) ||
+            (!t.month && m === settings.currentMonth && year === settings.currentYear)
+          )
+        );
+        const ins = insurances.find(i => i.employeeId === emp.id);
+        const meal = mealRegistrations.find(mReg => mReg.employeeId === emp.id && (mReg.month === monthStr || !mReg.month));
+        const empAllowances = specialAllowances.filter(a => a.employeeId === emp.id && (a.month === monthStr || !a.month));
+        const empDependents = dependents.filter(d => d.employeeId === emp.id);
+
+        const monthSettings: SystemSettings = {
+          ...settings,
+          currentMonth: m,
+          currentYear: year
+        };
+
+        const payroll = calculateEmployeePayroll(
+          emp,
+          tk,
+          ins,
+          meal,
+          empAllowances,
+          empDependents,
+          monthSettings,
+          0,
+          0,
+          timekeepings
+        );
+
+        monthGross += payroll.grossIncome;
+        monthTaxable += payroll.taxableIncome;
+        monthAssessable += payroll.assessableIncome;
+        monthDeductions += payroll.totalDeductionsForTax;
+        monthTaxWithheld += payroll.personalIncomeTax;
+
+        if (payroll.taxCalculationMethod && payroll.taxCalculationMethod !== 'progressive') {
+          primaryMethod = payroll.taxCalculationMethod;
+        }
+
+        totalPersonalDeductionYear += payroll.personalDeduction;
+        totalDependentDeductionYear += payroll.dependentDeduction;
+        totalInsuranceDeductionYear += payroll.totalInsuranceEmp;
+      });
+
+      if (hasActiveInMonth) {
+        activeMonthsCount++;
+      }
+
+      monthlyTaxWithheld[m] = monthTaxWithheld;
+      monthsDetail[m] = {
+        month: m,
+        grossIncome: monthGross,
+        taxableIncome: monthTaxable,
+        assessableIncome: monthAssessable,
+        deductions: monthDeductions,
+        taxWithheld: monthTaxWithheld,
+        taxMethod: primaryMethod
+      };
+
+      totalGrossIncomeYear += monthGross;
+      totalTaxableIncomeYear += monthTaxable;
+      totalTaxWithheldYear += monthTaxWithheld;
+    }
+
+    // Nếu người lao động không có thu nhập nào trong cả năm thì bỏ qua
+    if (totalGrossIncomeYear === 0 && activeMonthsCount === 0) {
+      return;
+    }
+
+    // Tổng các khoản giảm trừ cả năm
+    const totalDeductionsYear = totalPersonalDeductionYear + totalDependentDeductionYear + totalInsuranceDeductionYear;
+    
+    // Thu nhập tính thuế cả năm = max(0, Tổng thu nhập chịu thuế cả năm - Tổng giảm trừ cả năm)
+    const totalAssessableIncomeYear = Math.max(0, totalTaxableIncomeYear - totalDeductionsYear);
+
+    // Thuế TNCN tính theo Tổng thu nhập chịu thuế cả năm (quyết toán năm theo biểu lũy tiến quy năm)
+    const annualPayableTax = calculateAnnualPersonalIncomeTax(totalAssessableIncomeYear, settings.taxBrackets);
+
+    // Chênh lệch giữa tổng số bị khấu trừ và thuế TNCN phải nộp theo năm
+    // Chênh lệch = Tổng thuế TNCN đã khấu trừ cả năm - Thuế TNCN phải nộp theo năm
+    const taxDifference = totalTaxWithheldYear - annualPayableTax;
+
+    reportRecords.push({
+      id: cccd,
+      taxId: cccd,
+      idCardNumber: cccd,
+      fullName: primaryEmp.fullName,
+      employeeCodes,
+      employeeIds,
+      departmentNames,
+      positionNames,
+      hasMultipleCodes,
+      monthsDetail,
+      monthlyTaxWithheld,
+      totalMonthsActive: activeMonthsCount,
+      totalGrossIncomeYear,
+      totalTaxableIncomeYear,
+      totalPersonalDeductionYear,
+      totalDependentDeductionYear,
+      totalInsuranceDeductionYear,
+      totalDeductionsYear,
+      totalAssessableIncomeYear,
+      totalTaxWithheldYear,
+      annualPayableTax,
+      taxDifference
+    });
+  });
+
+  return reportRecords;
+};
+
 

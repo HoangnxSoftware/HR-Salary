@@ -439,7 +439,10 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                 </th>
                 <th className="px-4 py-3">Mã NV</th>
                 <th className="px-4 py-3">Họ và Tên</th>
-                <th className="px-4 py-3">Số Căn Cước (CCCD)</th>
+                <th className="px-4 py-3">
+                  <div>Số CCCD / Mã Số Thuế TNCN</div>
+                  <div className="text-[10px] font-normal text-emerald-600 normal-case">MST TNCN chính là số CCCD</div>
+                </th>
                 <th className="px-4 py-3">Số Điện Thoại</th>
                 <th className="px-4 py-3">Phòng Ban & Chức Vụ</th>
                 <th className="px-4 py-3">Trạng Thái</th>
@@ -509,7 +512,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                         {isDupeCccd && (
                           <div className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded font-sans font-bold text-[10px]">
                             <AlertTriangle className="w-3 h-3 text-red-600 shrink-0" />
-                            <span>Trùng số CCCD ({dupeCount} người)</span>
+                            <span>Trùng CCCD/MST ({dupeCount} mã NV - Tự động tính gộp thuế TNCN cả năm)</span>
                           </div>
                         )}
                         <div className="text-[10px] text-slate-400 mt-0.5">Cấp: {emp.issueDate}</div>

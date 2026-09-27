@@ -2,6 +2,13 @@ export type WorkStatus = 'active' | 'probation' | 'resigned' | 'transferred' | '
 
 export type SalaryCalculationBasis = 'monthly' | 'daily' | 'hourly' | 'percent' | 'department';
 
+export type TaxCalculationMethod = 
+  | 'progressive' // Theo Biểu Lũy Tiến (Mặc định)
+  | 'withholding_resident' // Khấu trừ % tại nguồn (Mặc định 10% - HĐ < 3 tháng hoặc không ký HĐ, từ 5tr trở lên)
+  | 'withholding_request' // Khấu trừ 10% tại nguồn theo yêu cầu cá nhân (chi trả < 5 triệu)
+  | 'withholding_non_resident'; // Cá nhân không cư trú (Mức thuế suất cố định 20%)
+
+
 export type FixedDaysOffPolicy = 
   | 'all_sundays' // Nghỉ tất cả các ngày Chủ nhật (CN)
   | 'half_sundays' // 1/2 CN (Được nghỉ 2 Chủ nhật trong tháng)
@@ -89,6 +96,13 @@ export interface SystemSettings {
 
   // Biểu thuế lũy tiến từng phần (cho phép tùy chỉnh bậc, ngưỡng, thuế suất)
   taxBrackets?: TaxBracket[];
+
+  // Cấu hình phương thức khấu trừ % thuế tại nguồn
+  taxWithholdingRateResident?: number; // Mặc định là 10%, có thể chỉnh sửa
+  taxWithholdingThreshold?: number; // Mức chi trả từ 5,000,000 đ/lần trở lên
+  taxWithholdingRateNonResident?: number; // Cá nhân không cư trú: 20%
+  defaultTaxMethod?: TaxCalculationMethod; // Mặc định: 'progressive'
+  monthlyEmployeeTaxMethods?: Record<string, TaxCalculationMethod>; // Key: `${monthKey}_${employeeId}`
 
   // Thiết lập thu nhập miễn thuế / không được miễn thuế TNCN (Tăng ca, Ăn ca tiền mặt, Trang phục, Điện thoại...)
   taxExemptionRules?: TaxExemptionRules;
@@ -394,7 +408,9 @@ export interface PayrollRecord {
   
   taxableIncome: number; // Thu nhập chịu thuế = Gross - Thu nhập miễn thuế (OT miễn thuế, ăn ca miễn thuế, phụ cấp miễn thuế)
   assessableIncome: number; // Thu nhập tính thuế = max(0, Thu nhập chịu thuế - Các khoản giảm trừ)
-  personalIncomeTax: number; // Thuế TNCN phải nộp (Lũy tiến 7 bậc)
+  personalIncomeTax: number; // Thuế TNCN phải nộp
+  taxCalculationMethod?: TaxCalculationMethod; // Phương thức tính thuế: lũy tiến hoặc khấu trừ % tại nguồn
+  taxWithholdingRateApplied?: number; // % khấu trừ tại nguồn áp dụng (10% hoặc 20%)
   
   // 8. Các khoản khấu trừ khác & Tạm ứng
   advancePayment: number; // Tạm ứng

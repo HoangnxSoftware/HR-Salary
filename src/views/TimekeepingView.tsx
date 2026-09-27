@@ -25,7 +25,10 @@ import {
   Printer,
   ChevronLeft,
   ChevronRight,
-  CalendarDays
+  CalendarDays,
+  RotateCcw,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   TimekeepingRecord, 
@@ -80,6 +83,19 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
   // Chọn tháng & năm để xem và cập nhật bảng chấm công
   const [selectedMonth, setSelectedMonth] = useState<number>(settings.currentMonth);
   const [selectedYear, setSelectedYear] = useState<number>(settings.currentYear);
+
+  // Modal Reset lại bảng chấm công & chấm công lại
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
+  const [resetConfig, setResetConfig] = useState<{
+    mode: 'standard' | 'blank';
+    applyFor: 'all' | 'department';
+    departmentId: string;
+  }>({
+    mode: 'standard',
+    applyFor: 'all',
+    departmentId: settings.departments[0]?.id || ''
+  });
 
   // Tự động đồng bộ nếu settings tháng/năm thay đổi từ ngoài
   useEffect(() => {
@@ -403,6 +419,145 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
     });
 
     onBatchUpdateTimekeeping(newRecords);
+    setResetSuccessMessage(`Đã chấm công tự động thành công cho tháng ${month}/${year}! Bảng thanh toán lương và Báo cáo lương cả năm đã được tính toán lại theo bảng công mới.`);
+    setTimeout(() => setResetSuccessMessage(null), 6000);
+  };
+
+  // Thực hiện Reset Bảng Chấm Công cho tháng đang chọn
+  const handleExecuteReset = (
+    mode: 'standard' | 'blank' | 'restore_initial',
+    applyFor: 'all' | 'department',
+    deptId?: string
+  ) => {
+    const activeEmps = employees
+      .filter(e => isEmployeeActiveInMonth(e, month, year))
+      .filter(e => applyFor === 'all' || e.departmentId === deptId);
+
+    if (activeEmps.length === 0) {
+      alert('Không có nhân viên phù hợp trong kỳ này để thực hiện Reset.');
+      return;
+    }
+
+    const holidayDates = new Set(settings.holidays.map(h => h.date));
+
+    const newRecords: TimekeepingRecord[] = activeEmps.map(emp => {
+      const days: Record<number, DayAttendance> = {};
+      const defaultShift: WorkShift = emp.positionId === 'pos-cn' ? 'ca_1' : 'ca_hanh_chinh';
+      const shiftHours = getShiftInfo(defaultShift).standardHours;
+      const empMealReg = mealRegistrations?.find(m => m.employeeId === emp.id && (m.month === monthKey || !m.month));
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayOfWeek = new Date(year, month - 1, d).getDay();
+        const isHol = holidayDates.has(dateStr);
+        const isSun = dayOfWeek === 0;
+        const isSat = dayOfWeek === 6;
+
+        let isOff = isSun;
+        if (settings.fixedDaysOffPolicy === 'all_weekends' && isSat) {
+          isOff = true;
+        } else if (settings.fixedDaysOffPolicy === 'sundays_and_half_saturdays' && isSat && (d > 7 && d <= 14 || d > 21 && d <= 28)) {
+          isOff = true;
+        }
+
+        if (mode === 'blank') {
+          // Bảng công trắng: xóa toàn bộ dữ liệu công, OT, ăn ca
+          days[d] = {
+            symbol: '',
+            hours: 0,
+            otNormalHours: 0,
+            otWeekendHours: 0,
+            otHolidayHours: 0,
+            hadMeal: false,
+            mealLunch: false,
+            mealAfternoon: false,
+            mealDinner: false
+          };
+        } else {
+          // Chấm công chuẩn: điền ngày công theo lịch
+          if (isHol) {
+            days[d] = {
+              symbol: 'L',
+              hours: 8,
+              shift: defaultShift,
+              otNormalHours: 0,
+              otWeekendHours: 0,
+              otHolidayHours: 0,
+              hadMeal: false,
+              mealLunch: false,
+              mealAfternoon: false,
+              mealDinner: false
+            };
+          } else if (isOff) {
+            days[d] = {
+              symbol: '',
+              hours: 0,
+              otNormalHours: 0,
+              otWeekendHours: 0,
+              otHolidayHours: 0,
+              hadMeal: false,
+              mealLunch: false,
+              mealAfternoon: false,
+              mealDinner: false
+            };
+          } else {
+            const regLunch = empMealReg?.registerLunch !== false;
+            const regAfternoon = !!empMealReg?.registerAfternoon;
+            const regDinner = !!empMealReg?.registerDinner;
+            days[d] = {
+              symbol: 'X',
+              hours: shiftHours,
+              shift: defaultShift,
+              otNormalHours: 0,
+              otWeekendHours: 0,
+              otHolidayHours: 0,
+              hadMeal: regLunch || regAfternoon || regDinner,
+              mealLunch: regLunch,
+              mealAfternoon: regAfternoon,
+              mealDinner: regDinner
+            };
+          }
+        }
+      }
+
+      const rawRecord: TimekeepingRecord = {
+        id: `tk-${emp.id}-${monthKey}`,
+        employeeId: emp.id,
+        year,
+        month: monthKey,
+        days,
+        actualWorkDays: 0,
+        paidLeaveDays: 0,
+        holidayDays: 0,
+        unpaidLeaveDays: 0,
+        insuranceLeaveDays: 0,
+        totalPaidDays: 0,
+        totalOtNormalHours: 0,
+        totalOtWeekendHours: 0,
+        totalOtHolidayHours: 0,
+        totalMeals: 0
+      };
+
+      return recalculateTimekeepingSummary(rawRecord);
+    });
+
+    onBatchUpdateTimekeeping(newRecords);
+    setIsResetModalOpen(false);
+    setResetSuccessMessage(
+      `Đã Reset lại bảng chấm công Tháng ${month}/${year} (${activeEmps.length} nhân viên)! Bảng thanh toán lương Tháng ${month} và Báo cáo lương cả năm ${year} đã được tự động tính toán lại theo đúng bảng chấm công từng tháng.`
+    );
+    setTimeout(() => setResetSuccessMessage(null), 7000);
+  };
+
+  // Cập nhật và lưu lại toàn bộ bảng chấm công hiện tại
+  const handleUpdateAndSyncTimekeeping = () => {
+    const activeEmps = employees.filter(e => isEmployeeActiveInMonth(e, month, year));
+    const currentRecords = activeEmps.map(emp => getEmployeeTimekeeping(emp.id));
+    onBatchUpdateTimekeeping(currentRecords);
+    setResetSuccessMessage(
+      `Đã cập nhật bảng chấm công Tháng ${month}/${year}! Bảng thanh toán lương Tháng ${month} và Báo cáo lương cả năm ${year} được tự động tính toán lại theo đúng bảng chấm công mới nhất.`
+    );
+    setTimeout(() => setResetSuccessMessage(null), 6000);
   };
 
   // Mở modal chấm công cho một ô ngày
@@ -1010,6 +1165,36 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {canEditTimekeeping && (
             <>
+              {/* Nút Reset lại bảng chấm công */}
+              <button
+                onClick={() => setIsResetModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
+                title="Reset lại bảng chấm công tháng này (chuẩn/trắng/mặc định) và tự động tính lại bảng lương"
+              >
+                <RotateCcw className="w-4 h-4 text-rose-600" />
+                <span>Reset Bảng Chấm Công</span>
+              </button>
+
+              {/* Nút Chấm công lại cho từng tháng */}
+              <button
+                onClick={handleAutoFillMonth}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
+                title="Chấm công lại tự động cho tháng đang chọn theo lịch và phân ca"
+              >
+                <RefreshCw className="w-4 h-4 text-amber-600" />
+                <span>Chấm Công Lại Tháng {month}</span>
+              </button>
+
+              {/* Nút Cập nhật bảng chấm công */}
+              <button
+                onClick={handleUpdateAndSyncTimekeeping}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                title="Lưu và cập nhật bảng chấm công, đồng bộ tính lại bảng thanh toán lương và báo cáo cả năm"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Cập Nhật Bảng Chấm Công</span>
+              </button>
+
               <button
                 onClick={() => setIsBatchShiftModalOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
@@ -1017,15 +1202,6 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
               >
                 <Layers className="w-4 h-4 text-slate-600" />
                 <span>Phân Ca Hàng Loạt</span>
-              </button>
-
-              <button
-                onClick={handleAutoFillMonth}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-                title="Tự động điền ngày công cả tháng theo lịch"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Chấm Công Tự Động</span>
               </button>
             </>
           )}
@@ -1052,6 +1228,25 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Thông báo cập nhật / Reset thành công */}
+      {resetSuccessMessage && (
+        <div className="p-4 bg-emerald-50 border-2 border-emerald-400 rounded-2xl text-emerald-950 flex items-start justify-between gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-extrabold text-sm text-emerald-900">Bảng Chấm Công & Bảng Lương Đã Được Cập Nhật Tự Động!</h4>
+              <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">{resetSuccessMessage}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setResetSuccessMessage(null)}
+            className="text-emerald-700 hover:text-emerald-950 text-xs font-bold p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
@@ -2653,6 +2848,158 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL RESET LẠI BẢNG CHẤM CÔNG & CHẤM CÔNG LẠI */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border border-slate-200 text-xs animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-rose-100 text-rose-700 rounded-xl">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Reset & Chấm Công Lại Bảng Chấm Công
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Kỳ áp dụng: <strong className="text-rose-700">Tháng {month}/{year}</strong>
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsResetModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Lựa chọn phương thức reset */}
+              <div>
+                <label className="block font-bold text-slate-900 mb-2">1. Chọn Phương Thức Reset:</label>
+                <div className="space-y-2.5">
+                  <label className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                    resetConfig.mode === 'standard' 
+                      ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20' 
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="resetMode"
+                      checked={resetConfig.mode === 'standard'}
+                      onChange={() => setResetConfig({ ...resetConfig, mode: 'standard' })}
+                      className="mt-0.5 text-emerald-600"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-900 text-xs block">
+                        ⭐ Chấm Công Chuẩn Tự Động (Khuyên dùng)
+                      </span>
+                      <span className="text-[11px] text-slate-600 leading-normal block mt-0.5">
+                        Điền ký hiệu 'X' (ca làm việc chuẩn) vào các ngày làm việc, 'L' vào ngày nghỉ lễ, và ngày nghỉ tuần (Chủ nhật/Thứ 7) theo đúng chính sách nghỉ của công ty.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                    resetConfig.mode === 'blank' 
+                      ? 'border-rose-500 bg-rose-50/60 ring-2 ring-rose-500/20' 
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="resetMode"
+                      checked={resetConfig.mode === 'blank'}
+                      onChange={() => setResetConfig({ ...resetConfig, mode: 'blank' })}
+                      className="mt-0.5 text-rose-600"
+                    />
+                    <div>
+                      <span className="font-bold text-rose-900 text-xs block">
+                        🗑️ Reset Về Bảng Công Trắng (Xóa Toàn Bộ)
+                      </span>
+                      <span className="text-[11px] text-slate-600 leading-normal block mt-0.5">
+                        Xóa sạch toàn bộ ký hiệu ngày công, giờ làm thêm (OT) và suất ăn ca để người dùng tự nhập công thủ công hoặc chấm lại từ đầu.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Lựa chọn phạm vi áp dụng */}
+              <div>
+                <label className="block font-bold text-slate-900 mb-2">2. Phạm Vi Áp Dụng:</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
+                    <input
+                      type="radio"
+                      name="applyResetFor"
+                      checked={resetConfig.applyFor === 'all'}
+                      onChange={() => setResetConfig({ ...resetConfig, applyFor: 'all' })}
+                      className="text-rose-600"
+                    />
+                    <span>Toàn bộ nhân sự đang làm việc trong tháng {month}/{year} ({filteredEmployees.length} người)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
+                    <input
+                      type="radio"
+                      name="applyResetFor"
+                      checked={resetConfig.applyFor === 'department'}
+                      onChange={() => setResetConfig({ ...resetConfig, applyFor: 'department' })}
+                      className="text-rose-600"
+                    />
+                    <span>Chỉ áp dụng cho một phòng ban cụ thể</span>
+                  </label>
+                </div>
+              </div>
+
+              {resetConfig.applyFor === 'department' && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Chọn phòng ban cần reset:</label>
+                  <select
+                    value={resetConfig.departmentId}
+                    onChange={e => setResetConfig({ ...resetConfig, departmentId: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:ring-2 focus:ring-rose-500 outline-none"
+                  >
+                    {settings.departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Lưu ý tự động tính toán lại lương */}
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-300 text-amber-950 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong>Cơ chế tự động đồng bộ:</strong> Dựa vào bảng chấm công được reset và cập nhật,{' '}
+                  <strong>bảng thanh toán lương tháng {month}</strong> và <strong>báo cáo lương cả năm {year}</strong>{' '}
+                  sẽ được tự động reset và tính toán lại chính xác theo đúng số công, giờ OT và suất ăn ca mới!
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExecuteReset(resetConfig.mode, resetConfig.applyFor, resetConfig.departmentId)}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Xác Nhận Reset & Cập Nhật Lương</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

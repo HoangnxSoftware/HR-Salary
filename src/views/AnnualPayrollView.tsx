@@ -91,7 +91,14 @@ export const AnnualPayrollView: React.FC<AnnualPayrollViewProps> = ({
 
         // Tìm hồ sơ công/bảo hiểm/phụ cấp/ăn ca của tháng m
         const monthStr = `${selectedYear}-${String(m).padStart(2, '0')}`;
-        const tk = timekeepings.find(t => t.employeeId === emp.id && (t.month === monthStr || (!t.month && m === settings.currentMonth && selectedYear === settings.currentYear)));
+        const tk = timekeepings.find(t => 
+          t.employeeId === emp.id && (
+            String(t.month) === monthStr || 
+            (Number(t.month) === m && (!t.year || t.year === selectedYear)) ||
+            (String(t.month) === String(m) && (!t.year || t.year === selectedYear)) ||
+            (!t.month && m === settings.currentMonth && selectedYear === settings.currentYear)
+          )
+        );
         const ins = insurances.find(i => i.employeeId === emp.id);
         const meal = mealRegistrations.find(mReg => mReg.employeeId === emp.id);
         const empAllowances = specialAllowances.filter(a => a.employeeId === emp.id && (a.month === monthStr || !a.month));

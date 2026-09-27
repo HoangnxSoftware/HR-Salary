@@ -412,27 +412,41 @@ function PayrollAppContent() {
   };
 
   // Timekeeping updates
+  const normalizeMonthKey = (monthVal?: string | number, yearVal?: number) => {
+    const str = String(monthVal || '');
+    if (str.includes('-')) return str;
+    const mNum = Number(monthVal) || settings.currentMonth;
+    const yNum = yearVal || settings.currentYear;
+    return `${yNum}-${String(mNum).padStart(2, '0')}`;
+  };
+
   const handleUpdateTimekeeping = (tk: TimekeepingRecord) => {
     setTimekeepings(prev => {
-      const tkMonth = String(tk.month || `${settings.currentYear}-${String(settings.currentMonth).padStart(2, '0')}`);
+      const tkKey = normalizeMonthKey(tk.month, tk.year);
       const idx = prev.findIndex(t => 
         t.id === tk.id || 
-        (t.employeeId === tk.employeeId && String(t.month || '') === tkMonth)
+        (t.employeeId === tk.employeeId && normalizeMonthKey(t.month, t.year) === tkKey)
       );
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = tk;
+        copy[idx] = { ...tk, month: tkKey };
         return copy;
       }
-      return [...prev, tk];
+      return [...prev, { ...tk, month: tkKey }];
     });
   };
 
   const handleBatchUpdateTimekeeping = (records: TimekeepingRecord[]) => {
     setTimekeepings(prev => {
-      const map = new Map(prev.map(t => [`${t.employeeId}_${String(t.month || '')}`, t]));
+      const map = new Map<string, TimekeepingRecord>();
+      prev.forEach(t => {
+        const k = `${t.employeeId}_${normalizeMonthKey(t.month, t.year)}`;
+        map.set(k, t);
+      });
       records.forEach(t => {
-        map.set(`${t.employeeId}_${String(t.month || '')}`, t);
+        const keyMonth = normalizeMonthKey(t.month, t.year);
+        const k = `${t.employeeId}_${keyMonth}`;
+        map.set(k, { ...t, month: keyMonth });
       });
       return Array.from(map.values());
     });
@@ -635,6 +649,11 @@ function PayrollAppContent() {
               payrolls={payrolls}
               employees={employees}
               settings={settings}
+              timekeepings={timekeepings}
+              insurances={insurances}
+              mealRegistrations={mealRegistrations}
+              specialAllowances={specialAllowances}
+              dependents={dependents}
               onUpdateSettings={setSettings}
             />
           )}

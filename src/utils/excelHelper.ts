@@ -363,6 +363,48 @@ export const exportTaxReportToExcel = (
 };
 
 /**
+ * Xuất Báo cáo quyết toán thuế TNCN cả năm ra Excel (Tích hợp tính gộp lao động trùng CCCD khác mã NV)
+ */
+export const exportAnnualTaxReportToExcel = (
+  records: any[],
+  year: number
+) => {
+  const rows = records.map((r, idx) => ({
+    'STT': idx + 1,
+    'Số CCCD / Mã Số Thuế TNCN': r.idCardNumber,
+    'Họ và Tên': r.fullName,
+    'Mã Nhân Viên': r.employeeCodes.join(', '),
+    'Phòng Ban': r.departmentNames.join(', '),
+    'Chức Vụ': r.positionNames.join(', '),
+    'Trùng CCCD Khác Mã NV': r.hasMultipleCodes ? 'Có (Tính gộp)' : 'Không',
+    'Thuế Khấu Trừ T1': r.monthlyTaxWithheld[1] || 0,
+    'Thuế Khấu Trừ T2': r.monthlyTaxWithheld[2] || 0,
+    'Thuế Khấu Trừ T3': r.monthlyTaxWithheld[3] || 0,
+    'Thuế Khấu Trừ T4': r.monthlyTaxWithheld[4] || 0,
+    'Thuế Khấu Trừ T5': r.monthlyTaxWithheld[5] || 0,
+    'Thuế Khấu Trừ T6': r.monthlyTaxWithheld[6] || 0,
+    'Thuế Khấu Trừ T7': r.monthlyTaxWithheld[7] || 0,
+    'Thuế Khấu Trừ T8': r.monthlyTaxWithheld[8] || 0,
+    'Thuế Khấu Trừ T9': r.monthlyTaxWithheld[9] || 0,
+    'Thuế Khấu Trừ T10': r.monthlyTaxWithheld[10] || 0,
+    'Thuế Khấu Trừ T11': r.monthlyTaxWithheld[11] || 0,
+    'Thuế Khấu Trừ T12': r.monthlyTaxWithheld[12] || 0,
+    'TỔNG THUẾ ĐÃ KHẤU TRỪ CẢ NĂM [1]': r.totalTaxWithheldYear,
+    'TỔNG THU NHẬP CHỊU THUẾ CẢ NĂM [2]': r.totalTaxableIncomeYear,
+    'TỔNG CÁC KHOẢN GIẢM TRỪ CẢ NĂM [3]': r.totalDeductionsYear,
+    'THU NHẬP TÍNH THUẾ CẢ NĂM [4]': r.totalAssessableIncomeYear,
+    'THUẾ TNCN TÍNH THEO CẢ NĂM [5]': r.annualPayableTax,
+    'CHÊNH LỆCH QUYẾT TOÁN [6 = 1 - 5]': r.taxDifference,
+    'KẾT QUẢ': r.taxDifference > 0 ? `Nộp thừa (+${r.taxDifference.toLocaleString('vi-VN')} đ)` : r.taxDifference < 0 ? `Nộp thiếu (${r.taxDifference.toLocaleString('vi-VN')} đ)` : 'Đã khớp (0 đ)'
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `Quyet_Toan_TNCN_${year}`);
+  XLSX.writeFile(wb, `Bao_Cao_Quyet_Toan_Thue_TNCN_Ca_Nam_${year}.xlsx`);
+};
+
+/**
  * Tải file Excel mẫu danh sách người phụ thuộc
  */
 export const downloadDependentTemplate = () => {

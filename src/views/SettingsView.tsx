@@ -910,6 +910,103 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
               </div>
             </div>
 
+            {/* Cấu hình Phương thức khấu trừ % thuế tại nguồn */}
+            <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/80 space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-amber-200">
+                <div>
+                  <span className="font-bold text-slate-900 block text-xs flex items-center gap-1.5">
+                    <Percent className="w-4 h-4 text-amber-600" />
+                    Cấu Hình Phương Thức Khấu Trừ % Thuế Tại Nguồn (Theo Pháp Luật Hiện Hành)
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Áp dụng cho hợp đồng dưới 3 tháng, vãng lai, yêu cầu khấu trừ hoặc cá nhân không cư trú
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full font-bold text-[10px] border border-amber-300">
+                  Mặc định: {formData.taxWithholdingRateResident ?? 10}%
+                </span>
+              </div>
+
+              {/* Form nhập thông số khấu trừ tại nguồn */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs pt-1">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Tỷ Lệ Khấu Trừ Tại Nguồn (%) *
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      disabled={!canEditSettings}
+                      value={formData.taxWithholdingRateResident ?? 10}
+                      onChange={e => setFormData({ ...formData, taxWithholdingRateResident: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-amber-900 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                    <span className="font-bold text-slate-600">%</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    Mặc định 10% (có thể tùy chỉnh theo quy chế)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Mức Chi Trả Áp Dụng Khấu Trừ (VNĐ/lần) *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={500000}
+                    disabled={!canEditSettings}
+                    value={formData.taxWithholdingThreshold ?? 5000000}
+                    onChange={e => setFormData({ ...formData, taxWithholdingThreshold: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-amber-900 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    Quy định: từ 5.000.000 đ/lần trở lên khấu trừ 10%
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Thuế Suất Cá Nhân Không Cư Trú (%) *
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      disabled={!canEditSettings}
+                      value={formData.taxWithholdingRateNonResident ?? 20}
+                      onChange={e => setFormData({ ...formData, taxWithholdingRateNonResident: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-rose-800 bg-white focus:ring-2 focus:ring-rose-500 outline-none"
+                    />
+                    <span className="font-bold text-slate-600">%</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    Áp dụng thuế suất cố định 20% theo quy định
+                  </span>
+                </div>
+              </div>
+
+              {/* Hướng dẫn pháp lý */}
+              <div className="p-3 bg-white/80 rounded-lg border border-amber-200 text-[11px] text-amber-950 space-y-1">
+                <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Căn Cứ Pháp Luật Thuế TNCN Hiện Hành:</span>
+                </div>
+                <div className="leading-relaxed text-slate-700 space-y-0.5 pl-1">
+                  <p>• <strong>Không ký HĐLĐ hoặc ký dưới 03 tháng:</strong> Mức chi trả từ <strong>5.000.000 đồng/lần trở lên</strong>: Khấu trừ theo tỷ lệ <strong>10%</strong> trước khi trả thu nhập.</p>
+                  <p>• <strong>Mức chi trả dưới 5.000.000 đồng/lần:</strong> Chỉ khấu trừ 10% khi cá nhân có yêu cầu.</p>
+                  <p>• <strong>Cá nhân không cư trú:</strong> Áp dụng mức thuế suất cố định <strong>20%</strong> trên thu nhập từ tiền lương, tiền công.</p>
+                  <p>• Trong <strong>Bảng kê khai thuế TNCN từng tháng</strong>, bạn có thể chuyển đổi phương thức tính thuế cho từng nhân sự; bảng lương và kê khai thuế sẽ tự động tính toán lại tức thì.</p>
+                </div>
+              </div>
+            </div>
+
             {/* Cấu hình miễn thuế TNCN */}
             <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-emerald-200">
