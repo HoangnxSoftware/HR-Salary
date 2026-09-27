@@ -173,15 +173,24 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
   const empMap = new Map(employees.map(e => [e.id, e]));
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
 
+  // Helper kiểm tra bản ghi chấm công có thuộc tháng/năm đang chọn hay không
+  const isRecordForMonth = (t: TimekeepingRecord, m: number, y: number) => {
+    const targetKey = `${y}-${String(m).padStart(2, '0')}`;
+    const tMonthStr = String(t.month || '');
+    if (tMonthStr === targetKey) return true;
+    if (tMonthStr.includes('-')) {
+      return tMonthStr === targetKey;
+    }
+    const tMonthNum = Number(t.month);
+    const tYearNum = t.year || settings.currentYear;
+    if (tMonthNum === m && tYearNum === y) return true;
+    if (!t.month && m === settings.currentMonth && y === settings.currentYear) return true;
+    return false;
+  };
+
   // Helper: Tìm hoặc khởi tạo bảng chấm công chuẩn cho nhân viên theo tháng đang chọn
   const getEmployeeTimekeeping = (empId: string): TimekeepingRecord => {
-    const found = timekeepings.find(t => 
-      t.employeeId === empId && (
-        String(t.month) === monthKey || 
-        (String(t.month) === String(month) && (!t.year || t.year === year)) ||
-        (!t.month && month === settings.currentMonth && year === settings.currentYear)
-      )
-    );
+    const found = timekeepings.find(t => t.employeeId === empId && isRecordForMonth(t, month, year));
     if (found) return found;
 
     // Tự động khởi tạo cấu trúc chấm công chuẩn cho tháng được chọn nếu chưa có dữ liệu
@@ -552,7 +561,14 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
   // Cập nhật và lưu lại toàn bộ bảng chấm công hiện tại
   const handleUpdateAndSyncTimekeeping = () => {
     const activeEmps = employees.filter(e => isEmployeeActiveInMonth(e, month, year));
-    const currentRecords = activeEmps.map(emp => getEmployeeTimekeeping(emp.id));
+    const currentRecords = activeEmps.map(emp => {
+      const t = getEmployeeTimekeeping(emp.id);
+      return {
+        ...t,
+        month: monthKey,
+        year
+      };
+    });
     onBatchUpdateTimekeeping(currentRecords);
     setResetSuccessMessage(
       `Đã cập nhật bảng chấm công Tháng ${month}/${year}! Bảng thanh toán lương Tháng ${month} và Báo cáo lương cả năm ${year} được tự động tính toán lại theo đúng bảng chấm công mới nhất.`
@@ -1175,16 +1191,6 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                 <span>Reset Bảng Chấm Công</span>
               </button>
 
-              {/* Nút Chấm công lại cho từng tháng */}
-              <button
-                onClick={handleAutoFillMonth}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
-                title="Chấm công lại tự động cho tháng đang chọn theo lịch và phân ca"
-              >
-                <RefreshCw className="w-4 h-4 text-amber-600" />
-                <span>Chấm Công Lại Tháng {month}</span>
-              </button>
-
               {/* Nút Cập nhật bảng chấm công */}
               <button
                 onClick={handleUpdateAndSyncTimekeeping}
@@ -1476,7 +1482,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                   </tr>
                 ) : (
                   filteredEmployees.map(emp => {
-                    const tk = timekeepings.find(t => t.employeeId === emp.id);
+                    const tk = getEmployeeTimekeeping(emp.id);
 
                     return (
                       <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1754,7 +1760,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
 
         // Thống kê bữa ăn trong ngày đang chọn
         const dayMealStats = filteredEmployees.reduce((acc, emp) => {
-          const tk = timekeepings.find(t => t.employeeId === emp.id);
+          const tk = getEmployeeTimekeeping(emp.id);
           const dayData = tk?.days[selectedMealDay];
           const lunch = dayData?.mealLunch ? 1 : 0;
           const afternoon = dayData?.mealAfternoon ? 1 : 0;
@@ -1824,9 +1830,10 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                     const isSatD = isSaturday(d);
                     const isHolD = isHoliday(d);
 
-                    // Đếm số suất ăn của ngày này
-                    const dayMealsSum = timekeepings.reduce((sum, tk) => {
-                      const dayRec = tk.days[d];
+                    // Đếm số suất ăn của ngày này trong tháng đang chọn
+                    const dayMealsSum = filteredEmployees.reduce((sum, emp) => {
+                      const tk = getEmployeeTimekeeping(emp.id);
+                      const dayRec = tk?.days[d];
                       const cnt = (dayRec?.mealLunch ? 1 : 0) + (dayRec?.mealAfternoon ? 1 : 0) + (dayRec?.mealDinner ? 1 : 0) || (dayRec?.hadMeal ? 1 : 0);
                       return sum + cnt;
                     }, 0);
@@ -1984,7 +1991,7 @@ export const TimekeepingView: React.FC<TimekeepingViewProps> = ({
                       </tr>
                     ) : (
                       filteredEmployees.map((emp, idx) => {
-                        const tk = timekeepings.find(t => t.employeeId === emp.id);
+                        const tk = getEmployeeTimekeeping(emp.id);
                         const dayData = tk?.days[selectedMealDay];
                         const symbol = dayData?.symbol || '';
                         const shift = dayData?.shift;

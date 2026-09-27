@@ -139,6 +139,14 @@ function PayrollAppContent() {
     }
   }, []);
 
+  const normalizeMonthKey = (monthVal?: string | number, yearVal?: number) => {
+    const str = String(monthVal || '');
+    if (str.includes('-')) return str;
+    const mNum = Number(monthVal) || settings.currentMonth;
+    const yNum = yearVal || settings.currentYear;
+    return `${yNum}-${String(mNum).padStart(2, '0')}`;
+  };
+
   // Automatic Dynamic Payroll Calculation Engine
   const payrolls: PayrollRecord[] = useMemo(() => {
     // Chỉ tính lương cho những nhân viên đang hoạt động trong tháng này
@@ -151,8 +159,7 @@ function PayrollAppContent() {
     return activeEmployees.map(emp => {
       const tk = timekeepings.find(t => 
         t.employeeId === emp.id && (
-          String(t.month) === currentMonthKey ||
-          (String(t.month) === String(settings.currentMonth) && (!t.year || t.year === settings.currentYear)) ||
+          normalizeMonthKey(t.month, t.year) === currentMonthKey ||
           (!t.month && settings.currentMonth === 9 && settings.currentYear === 2026)
         )
       );
@@ -412,27 +419,20 @@ function PayrollAppContent() {
   };
 
   // Timekeeping updates
-  const normalizeMonthKey = (monthVal?: string | number, yearVal?: number) => {
-    const str = String(monthVal || '');
-    if (str.includes('-')) return str;
-    const mNum = Number(monthVal) || settings.currentMonth;
-    const yNum = yearVal || settings.currentYear;
-    return `${yNum}-${String(mNum).padStart(2, '0')}`;
-  };
-
   const handleUpdateTimekeeping = (tk: TimekeepingRecord) => {
     setTimekeepings(prev => {
       const tkKey = normalizeMonthKey(tk.month, tk.year);
+      const tkYear = tk.year || Number(tkKey.split('-')[0]) || settings.currentYear;
       const idx = prev.findIndex(t => 
         t.id === tk.id || 
         (t.employeeId === tk.employeeId && normalizeMonthKey(t.month, t.year) === tkKey)
       );
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = { ...tk, month: tkKey };
+        copy[idx] = { ...tk, month: tkKey, year: tkYear };
         return copy;
       }
-      return [...prev, { ...tk, month: tkKey }];
+      return [...prev, { ...tk, month: tkKey, year: tkYear }];
     });
   };
 
@@ -446,7 +446,8 @@ function PayrollAppContent() {
       records.forEach(t => {
         const keyMonth = normalizeMonthKey(t.month, t.year);
         const k = `${t.employeeId}_${keyMonth}`;
-        map.set(k, { ...t, month: keyMonth });
+        const recYear = t.year || Number(keyMonth.split('-')[0]) || settings.currentYear;
+        map.set(k, { ...t, month: keyMonth, year: recYear });
       });
       return Array.from(map.values());
     });
