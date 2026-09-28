@@ -23,6 +23,34 @@ export const PrintDependentsModal: React.FC<PrintDependentsModalProps> = ({
   const empMap = new Map(employees.map(e => [e.id, e]));
   const depMap = new Map(settings.departments.map(d => [d.id, d.name]));
 
+  // Tập hợp các số CCCD NLĐ bị trùng lặp giữa các nhân viên khác nhau
+  const duplicateEmpIdCards = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
+
+  // Tập hợp số CCCD/Mã số NPT bị trùng lặp giữa các người phụ thuộc
+  const duplicateDepCards = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    dependents.forEach(d => {
+      const cccd = (d.taxCodeOrId || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [dependents]);
+
   const totalDeduction = dependents.reduce((sum, d) => sum + (d.deductionAmount || 4400000), 0);
 
   const handlePrint = () => {
@@ -142,6 +170,7 @@ export const PrintDependentsModal: React.FC<PrintDependentsModalProps> = ({
                   <tr>
                     <th className="border border-slate-400 p-1 w-8">STT</th>
                     <th className="border border-slate-400 p-1 w-20">Mã NV</th>
+                    <th className="border border-slate-400 p-1 min-w-[85px] text-center">Số CCCD NLĐ</th>
                     <th className="border border-slate-400 p-1 text-left min-w-[130px]">Họ và Tên Nhân Viên</th>
                     <th className="border border-slate-400 p-1 text-left min-w-[100px]">Phòng Ban</th>
                     <th className="border border-slate-400 p-1 text-left min-w-[130px]">Họ Tên Người Phụ Thuộc</th>
@@ -157,16 +186,34 @@ export const PrintDependentsModal: React.FC<PrintDependentsModalProps> = ({
                 <tbody>
                   {dependents.map((dep, idx) => {
                     const emp = empMap.get(dep.employeeId);
+                    const isDuplicateEmpCccd = emp?.idCardNumber ? duplicateEmpIdCards.has(emp.idCardNumber.trim()) : false;
+                    const isDuplicateDepCccd = dep.taxCodeOrId ? duplicateDepCards.has(dep.taxCodeOrId.trim()) : false;
+
                     return (
                       <tr key={dep.id} className="hover:bg-slate-50">
                         <td className="border border-slate-400 p-1">{idx + 1}</td>
                         <td className="border border-slate-400 p-1 font-mono font-semibold">{emp?.employeeCode || '-'}</td>
+                        <td className="border border-slate-400 p-1 font-mono text-center">
+                          <div>{emp?.idCardNumber || '-'}</div>
+                          {isDuplicateEmpCccd && (
+                            <span className="text-[7px] font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded block mt-0.5 print:border print:border-amber-400">
+                              *Trùng CCCD
+                            </span>
+                          )}
+                        </td>
                         <td className="border border-slate-400 p-1 text-left font-bold text-slate-900">{emp?.fullName || '-'}</td>
                         <td className="border border-slate-400 p-1 text-left text-slate-600">{depMap.get(emp?.departmentId || '') || ''}</td>
                         <td className="border border-slate-400 p-1 text-left font-semibold text-slate-800">{dep.fullName}</td>
                         <td className="border border-slate-400 p-1">{dep.relationship}</td>
                         <td className="border border-slate-400 p-1 font-mono">{dep.birthDate || '-'}</td>
-                        <td className="border border-slate-400 p-1 font-mono">{dep.taxCodeOrId || '-'}</td>
+                        <td className="border border-slate-400 p-1 font-mono">
+                          <div>{dep.taxCodeOrId || '-'}</div>
+                          {isDuplicateDepCccd && (
+                            <span className="text-[7px] font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded block mt-0.5 print:border print:border-amber-400">
+                              *Trùng NPT
+                            </span>
+                          )}
+                        </td>
                         <td className="border border-slate-400 p-1 font-mono">{dep.startDate || '-'}</td>
                         <td className="border border-slate-400 p-1 font-mono">{dep.endDate || 'Hiện tại'}</td>
                         <td className="border border-slate-400 p-1 text-right font-mono font-semibold text-emerald-800">
@@ -179,7 +226,7 @@ export const PrintDependentsModal: React.FC<PrintDependentsModalProps> = ({
 
                   {/* Summary Row */}
                   <tr className="bg-slate-200 font-bold text-slate-900">
-                    <td colSpan={10} className="border border-slate-400 p-1 text-center uppercase">
+                    <td colSpan={11} className="border border-slate-400 p-1 text-center uppercase">
                       TỔNG CỘNG MỨC GIẢM TRỪ GIA CẢNH ({dependents.length} Người)
                     </td>
                     <td className="border border-slate-400 p-1 text-right font-mono font-black text-emerald-900">

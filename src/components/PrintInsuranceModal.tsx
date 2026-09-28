@@ -18,6 +18,20 @@ export const PrintInsuranceModal: React.FC<PrintInsuranceModalProps> = ({
   employees,
   settings,
 }) => {
+  // Tập hợp các số CCCD NLĐ bị trùng lặp - Phải gọi hook TRƯỚC mọi return để tuân thủ React Rules of Hooks
+  const duplicateIdCards = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
+
   if (!isOpen) return null;
 
   const empMap = new Map(employees.map(e => [e.id, e]));
@@ -137,10 +151,10 @@ export const PrintInsuranceModal: React.FC<PrintInsuranceModalProps> = ({
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page {
-                size: landscape;
+                size: A4 landscape;
                 margin: 7mm 5mm;
               }
-              body {
+              body * {
                 visibility: hidden;
               }
               #insurance-print-sheet, #insurance-print-sheet * {
@@ -151,6 +165,7 @@ export const PrintInsuranceModal: React.FC<PrintInsuranceModalProps> = ({
                 left: 0;
                 top: 0;
                 width: 100%;
+                display: block !important;
               }
             }
           `}} />
@@ -218,6 +233,7 @@ export const PrintInsuranceModal: React.FC<PrintInsuranceModalProps> = ({
                   <tr>
                     <th rowSpan={2} className="border border-slate-400 p-1 w-7">STT</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 min-w-[55px]">Mã NV</th>
+                    <th rowSpan={2} className="border border-slate-400 p-1 min-w-[85px] text-center">Số CCCD</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[120px]">Họ và Tên</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 text-left min-w-[80px]">Phòng Ban</th>
                     <th rowSpan={2} className="border border-slate-400 p-1 text-right min-w-[80px] bg-slate-200">
@@ -251,10 +267,20 @@ export const PrintInsuranceModal: React.FC<PrintInsuranceModalProps> = ({
                 <tbody>
                   {dataRows.map((row, idx) => {
                     const emp = row.emp;
+                    const isDuplicateCccd = emp?.idCardNumber ? duplicateIdCards.has(emp.idCardNumber.trim()) : false;
+
                     return (
                       <tr key={row.ins.id} className="hover:bg-slate-50">
                         <td className="border border-slate-400 p-0.5">{idx + 1}</td>
                         <td className="border border-slate-400 p-0.5 font-mono font-semibold">{emp?.employeeCode || '-'}</td>
+                        <td className="border border-slate-400 p-0.5 font-mono text-center">
+                          <div>{emp?.idCardNumber || '-'}</div>
+                          {isDuplicateCccd && (
+                            <span className="text-[7px] font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded block mt-0.5 print:border print:border-amber-400">
+                              *Trùng CCCD
+                            </span>
+                          )}
+                        </td>
                         <td className="border border-slate-400 p-0.5 text-left font-bold text-slate-900 truncate">{emp?.fullName || '-'}</td>
                         <td className="border border-slate-400 p-0.5 text-left text-slate-600 truncate">{depMap.get(emp?.departmentId || '') || ''}</td>
                         <td className="border border-slate-400 p-0.5 text-right font-mono font-semibold bg-slate-50">
@@ -291,7 +317,7 @@ export const PrintInsuranceModal: React.FC<PrintInsuranceModalProps> = ({
 
                   {/* Summary row */}
                   <tr className="bg-slate-200 font-bold text-slate-900">
-                    <td colSpan={4} className="border border-slate-400 p-1 text-center uppercase">
+                    <td colSpan={5} className="border border-slate-400 p-1 text-center uppercase">
                       TỔNG CỘNG ({participatingCount} người tham gia)
                     </td>
                     <td className="border border-slate-400 p-1 text-right font-mono font-black">

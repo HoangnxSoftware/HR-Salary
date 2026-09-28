@@ -413,6 +413,7 @@ export const downloadDependentTemplate = () => {
   const sample = [
     {
       'Mã Nhân Viên': 'NV-0001',
+      'Số CCCD Người Lao Động': '001090001234',
       'Họ và Tên Nhân Viên': 'Nguyễn Văn A',
       'Họ và Tên Người Phụ Thuộc': 'Nguyễn Minh Khang',
       'Số Định Danh / CCCD / MST NPT': '001216009823',
@@ -425,6 +426,7 @@ export const downloadDependentTemplate = () => {
     },
     {
       'Mã Nhân Viên': 'NV-0001',
+      'Số CCCD Người Lao Động': '001090001234',
       'Họ và Tên Nhân Viên': 'Nguyễn Văn A',
       'Họ và Tên Người Phụ Thuộc': 'Nguyễn Bảo Anh',
       'Số Định Danh / CCCD / MST NPT': '001220005412',
@@ -466,11 +468,22 @@ export const readDependentExcel = async (
         const results: Dependent[] = [];
 
         json.forEach((row, idx) => {
-          const empCode = String(row['Mã Nhân Viên'] || '').trim().toLowerCase();
-          const empName = String(row['Họ và Tên Nhân Viên'] || row['Họ Tên Nhân Viên'] || '').trim().toLowerCase();
-          const empCard = String(row['Số CCCD'] || row['CCCD'] || '').trim();
+          const empCode = String(row['Mã Nhân Viên'] || row['Mã NV'] || '').trim().toLowerCase();
+          const empName = String(row['Họ và Tên Nhân Viên'] || row['Họ Tên Nhân Viên'] || row['Họ và Tên NLĐ'] || '').trim().toLowerCase();
+          const empCard = String(
+            row['Số CCCD Người Lao Động'] || 
+            row['Số CCCD NLĐ'] || 
+            row['Số CCCD Nhân Viên'] || 
+            row['Số CCCD'] || 
+            row['CCCD NLĐ'] || 
+            row['CCCD Người Lao Động'] || 
+            row['CCCD'] || 
+            ''
+          ).trim();
 
-          const matchedEmp = codeMap.get(empCode) || idCardMap.get(empCard) || nameMap.get(empName);
+          const matchedEmp = (empCode ? codeMap.get(empCode) : null) || 
+                             (empCard ? idCardMap.get(empCard) : null) || 
+                             (empName ? nameMap.get(empName) : null);
           const empId = matchedEmp ? matchedEmp.id : (employees[0]?.id || `emp-${idx}`);
 
           const depFullName = String(row['Họ và Tên Người Phụ Thuộc'] || row['Họ Tên Người Phụ Thuộc'] || row['Họ và Tên'] || '').trim();
@@ -663,3 +676,93 @@ export const exportAnnualPayrollToExcel = (
   XLSX.utils.book_append_sheet(workbook, worksheet, `BaoCaoLuong_${year}`);
   XLSX.writeFile(workbook, `Bao_Cao_Luong_Ca_Nam_${year}_${companyName.replace(/\s+/g, '_').slice(0, 20)}.xlsx`);
 };
+
+/**
+ * Xuất Báo cáo đóng BHXH cả năm (12 tháng) ra file Excel
+ */
+export const exportAnnualInsuranceToExcel = (
+  annualData: {
+    employee: Employee;
+    departmentName: string;
+    positionName: string;
+    isParticipatingYear: boolean;
+    activeMonthsCount: number;
+    monthlySalary: { [month: number]: number };
+    monthlyEmpTotal: { [month: number]: number };
+    monthlyErTotal: { [month: number]: number };
+    monthlyGrandTotal: { [month: number]: number };
+    totalInsuranceSalaryYear: number;
+    totalSocEmpYear: number;
+    totalMedEmpYear: number;
+    totalUnempEmpYear: number;
+    totalEmpYear: number;
+    totalSocErYear: number;
+    totalMedErYear: number;
+    totalUnempErYear: number;
+    totalUnionErYear: number;
+    totalErYear: number;
+    totalContributionYear: number;
+    avgMonthlyContribution: number;
+  }[],
+  year: number,
+  companyName: string
+) => {
+  // Sheet 1: Tổng nộp từng tháng trong 12 tháng
+  const sheet1Rows = annualData.map((row, idx) => ({
+    'STT': idx + 1,
+    'Mã Nhân Viên': row.employee.employeeCode,
+    'Số CCCD': row.employee.idCardNumber || '',
+    'Họ và Tên': row.employee.fullName,
+    'Phòng Ban': row.departmentName,
+    'Chức Vụ': row.positionName,
+    'Số Tháng Tham Gia': row.activeMonthsCount,
+    'Tháng 1': row.monthlyGrandTotal[1] || 0,
+    'Tháng 2': row.monthlyGrandTotal[2] || 0,
+    'Tháng 3': row.monthlyGrandTotal[3] || 0,
+    'Tháng 4': row.monthlyGrandTotal[4] || 0,
+    'Tháng 5': row.monthlyGrandTotal[5] || 0,
+    'Tháng 6': row.monthlyGrandTotal[6] || 0,
+    'Tháng 7': row.monthlyGrandTotal[7] || 0,
+    'Tháng 8': row.monthlyGrandTotal[8] || 0,
+    'Tháng 9': row.monthlyGrandTotal[9] || 0,
+    'Tháng 10': row.monthlyGrandTotal[10] || 0,
+    'Tháng 11': row.monthlyGrandTotal[11] || 0,
+    'Tháng 12': row.monthlyGrandTotal[12] || 0,
+    'Tổng Quỹ Lương Năm': row.totalInsuranceSalaryYear,
+    'Tổng NLĐ Đóng Cả Năm': row.totalEmpYear,
+    'Tổng DN Đóng Cả Năm': row.totalErYear,
+    'Tổng Nộp Cả Năm (34%)': row.totalContributionYear,
+    'Bình Quân / Tháng': Math.round(row.avgMonthlyContribution)
+  }));
+
+  // Sheet 2: Chi tiết các quỹ BHXH, BHYT, BHTN, KPCĐ
+  const sheet2Rows = annualData.map((row, idx) => ({
+    'STT': idx + 1,
+    'Mã Nhân Viên': row.employee.employeeCode,
+    'Số CCCD': row.employee.idCardNumber || '',
+    'Họ và Tên': row.employee.fullName,
+    'Phòng Ban': row.departmentName,
+    'Số Tháng Tham Gia': row.activeMonthsCount,
+    'Tổng Quỹ Lương Năm': row.totalInsuranceSalaryYear,
+    'BHXH NLĐ (8%)': row.totalSocEmpYear,
+    'BHYT NLĐ (1.5%)': row.totalMedEmpYear,
+    'BHTN NLĐ (1%)': row.totalUnempEmpYear,
+    'TỔNG TRÍCH NLĐ (10.5%)': row.totalEmpYear,
+    'BHXH DN (17.5%)': row.totalSocErYear,
+    'BHYT DN (3%)': row.totalMedErYear,
+    'BHTN DN (1%)': row.totalUnempErYear,
+    'KPCĐ DN (2%)': row.totalUnionErYear,
+    'TỔNG ĐÓNG DN (23.5%)': row.totalErYear,
+    'TỔNG CỘNG NỘP CƠ QUAN BHXH (34%)': row.totalContributionYear
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(sheet1Rows);
+  const ws2 = XLSX.utils.json_to_sheet(sheet2Rows);
+
+  XLSX.utils.book_append_sheet(wb, ws1, `BHXH_12_Thang_${year}`);
+  XLSX.utils.book_append_sheet(wb, ws2, `Chi_Tiet_Cac_Quy_${year}`);
+
+  XLSX.writeFile(wb, `Bao_Cao_Dong_BHXH_Ca_Nam_${year}_${companyName.replace(/\s+/g, '_').slice(0, 20)}.xlsx`);
+};
+

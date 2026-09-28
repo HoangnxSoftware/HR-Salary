@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Users, UserPlus, Trash2, Edit3, Download, Search, CheckCircle2, ShieldAlert, Upload, FileSpreadsheet, Printer } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Users, UserPlus, Trash2, Edit3, Download, Search, CheckCircle2, ShieldAlert, Upload, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
 import { Dependent, Employee, RelationshipType, SystemSettings } from '../types';
 import { formatVND } from '../utils/payrollCalculator';
 import { downloadDependentTemplate, readDependentExcel } from '../utils/excelHelper';
@@ -48,6 +48,34 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
 
   const empMap = new Map(employees.map(e => [e.id, e]));
 
+  // Tập hợp các số CCCD NLĐ bị trùng lặp giữa các nhân viên khác nhau
+  const duplicateEmpIdCards = useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach(e => {
+      const cccd = (e.idCardNumber || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [employees]);
+
+  // Tập hợp số CCCD/Mã số NPT bị trùng lặp giữa các người phụ thuộc
+  const duplicateDepCards = useMemo(() => {
+    const counts = new Map<string, number>();
+    dependents.forEach(d => {
+      const cccd = (d.taxCodeOrId || '').trim();
+      if (cccd) counts.set(cccd, (counts.get(cccd) || 0) + 1);
+    });
+    const dupSet = new Set<string>();
+    counts.forEach((cnt, cccd) => {
+      if (cnt > 1) dupSet.add(cccd);
+    });
+    return dupSet;
+  }, [dependents]);
+
   const filteredDependents = dependents.filter(dep => {
     const emp = empMap.get(dep.employeeId);
     const search = searchTerm.toLowerCase();
@@ -55,7 +83,8 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
       dep.fullName.toLowerCase().includes(search) ||
       dep.taxCodeOrId.toLowerCase().includes(search) ||
       (emp && emp.fullName.toLowerCase().includes(search)) ||
-      (emp && emp.employeeCode.toLowerCase().includes(search))
+      (emp && emp.employeeCode.toLowerCase().includes(search)) ||
+      (emp && emp.idCardNumber && emp.idCardNumber.toLowerCase().includes(search))
     );
   });
 
@@ -116,9 +145,10 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
       return {
         'STT': idx + 1,
         'Mã Nhân Viên': emp?.employeeCode || '',
+        'Số CCCD NLĐ': emp?.idCardNumber || '',
         'Họ Tên Nhân Viên': emp?.fullName || '',
         'Họ Tên Người Phụ Thuộc': d.fullName,
-        'CCCD / Mã Định Danh / MST': d.taxCodeOrId,
+        'CCCD / Mã Định Danh / MST NPT': d.taxCodeOrId,
         'Mối Quan Hệ': d.relationship,
         'Ngày Sinh': d.birthDate,
         'Bắt Đầu Giảm Trừ': d.startDate,
@@ -262,6 +292,7 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
             <thead className="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3">Nhân Viên Liên Quan</th>
+                <th className="px-4 py-3">Số CCCD NLĐ</th>
                 <th className="px-4 py-3">Họ và Tên NPT</th>
                 <th className="px-4 py-3">CCCD / Mã Số NPT</th>
                 <th className="px-4 py-3">Mối Quan Hệ</th>
@@ -275,24 +306,48 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredDependents.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">
                     Chưa có người phụ thuộc nào được đăng ký.
                   </td>
                 </tr>
               ) : (
                 filteredDependents.map(dep => {
                   const emp = empMap.get(dep.employeeId);
+                  const isDuplicateEmpCccd = emp?.idCardNumber ? duplicateEmpIdCards.has(emp.idCardNumber.trim()) : false;
+                  const isDuplicateDepCccd = dep.taxCodeOrId ? duplicateDepCards.has(dep.taxCodeOrId.trim()) : false;
+
                   return (
                     <tr key={dep.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3.5">
                         <div className="font-bold text-slate-900">{emp?.fullName || 'Không rõ'}</div>
                         <div className="font-mono text-[11px] text-emerald-700 font-semibold">{emp?.employeeCode}</div>
                       </td>
+                      <td className="px-4 py-3.5 font-mono">
+                        <div className="font-semibold text-slate-900">{emp?.idCardNumber || '—'}</div>
+                        {isDuplicateEmpCccd && (
+                          <span 
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                            title="Số CCCD của người lao động này trùng với một mã nhân viên khác"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                            Trùng CCCD
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5 font-bold text-slate-800 text-sm">
                         {dep.fullName}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-slate-700">
-                        {dep.taxCodeOrId || '-'}
+                        <div>{dep.taxCodeOrId || '-'}</div>
+                        {isDuplicateDepCccd && (
+                          <span 
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[9px] mt-0.5 whitespace-nowrap shadow-2xs"
+                            title="Số CCCD / Mã định danh người phụ thuộc này trùng với một hồ sơ NPT khác"
+                          >
+                            <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                            Trùng NPT
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded font-semibold text-[11px]">
@@ -358,7 +413,9 @@ export const DependentsView: React.FC<DependentsViewProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-medium"
                 >
                   {employees.map(e => (
-                    <option key={e.id} value={e.id}>{e.employeeCode} - {e.fullName}</option>
+                    <option key={e.id} value={e.id}>
+                      {e.employeeCode} - {e.fullName}{e.idCardNumber ? ` (CCCD: ${e.idCardNumber})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
