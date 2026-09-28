@@ -3,6 +3,7 @@ import {
   Employee,
   Dependent,
   InsuranceRecord,
+  InsuranceRatePeriod,
   MealRegistration,
   SpecialAllowance,
   TimekeepingRecord,
@@ -13,6 +14,102 @@ import {
   TaxExemptionRules,
   TaxCalculationMethod
 } from '../types';
+
+export interface EffectiveInsuranceRates {
+  socialInsRateEmployee: number;
+  healthInsRateEmployee: number;
+  unemploymentInsRateEmployee: number;
+  totalEmpRate: number;
+  
+  socialInsRateEmployer: number;
+  healthInsRateEmployer: number;
+  unemploymentInsRateEmployer: number;
+  tradeUnionRateEmployer: number;
+  totalErRate: number;
+  
+  totalRate: number;
+  periodName?: string;
+  note?: string;
+}
+
+/**
+ * Lấy tỷ lệ trích đóng BHXH có hiệu lực cho một tháng cụ thể (theo giai đoạn thiết lập trong cài đặt hệ thống)
+ * Nếu quy định pháp luật thay đổi theo từng thời kỳ, hệ thống sẽ tự động áp dụng đúng tỷ lệ của giai đoạn đó.
+ */
+export const getInsuranceRatesForMonth = (
+  settings: SystemSettings,
+  year?: number,
+  month?: number
+): EffectiveInsuranceRates => {
+  const y = year ?? settings.currentYear;
+  const m = month ?? settings.currentMonth;
+  const monthKey = `${y}-${String(m).padStart(2, '0')}`;
+
+  if (settings.insuranceRatePeriods && settings.insuranceRatePeriods.length > 0) {
+    // Sắp xếp các giai đoạn theo fromMonth mới nhất trước
+    const sorted = [...settings.insuranceRatePeriods].sort((a, b) => (b.fromMonth || '').localeCompare(a.fromMonth || ''));
+    const matched = sorted.find(p => {
+      const fromOk = !p.fromMonth || monthKey >= p.fromMonth;
+      const toOk = !p.toMonth || monthKey <= p.toMonth;
+      return fromOk && toOk;
+    });
+
+    if (matched) {
+      const empSoc = matched.socialInsRateEmployee ?? 8.0;
+      const empHea = matched.healthInsRateEmployee ?? 1.5;
+      const empUne = matched.unemploymentInsRateEmployee ?? 1.0;
+      const totalEmp = Number((empSoc + empHea + empUne).toFixed(2));
+
+      const erSoc = matched.socialInsRateEmployer ?? 17.5;
+      const erHea = matched.healthInsRateEmployer ?? 3.0;
+      const erUne = matched.unemploymentInsRateEmployer ?? 1.0;
+      const erUnion = matched.tradeUnionRateEmployer ?? 2.0;
+      const totalEr = Number((erSoc + erHea + erUne + erUnion).toFixed(2));
+
+      return {
+        socialInsRateEmployee: empSoc,
+        healthInsRateEmployee: empHea,
+        unemploymentInsRateEmployee: empUne,
+        totalEmpRate: totalEmp,
+        socialInsRateEmployer: erSoc,
+        healthInsRateEmployer: erHea,
+        unemploymentInsRateEmployer: erUne,
+        tradeUnionRateEmployer: erUnion,
+        totalErRate: totalEr,
+        totalRate: Number((totalEmp + totalEr).toFixed(2)),
+        periodName: matched.name || `Giai đoạn ${matched.fromMonth}${matched.toMonth ? ` đến ${matched.toMonth}` : ' đến nay'}`,
+        note: matched.note
+      };
+    }
+  }
+
+  // Fallback về thiết lập chuẩn ở cấp độ cao nhất của Settings
+  const empSoc = settings.socialInsRateEmployee ?? 8.0;
+  const empHea = settings.healthInsRateEmployee ?? 1.5;
+  const empUne = settings.unemploymentInsRateEmployee ?? 1.0;
+  const totalEmp = Number((empSoc + empHea + empUne).toFixed(2));
+
+  const erSoc = settings.socialInsRateEmployer ?? 17.5;
+  const erHea = settings.healthInsRateEmployer ?? 3.0;
+  const erUne = settings.unemploymentInsRateEmployer ?? 1.0;
+  const erUnion = settings.tradeUnionRateEmployer ?? 2.0;
+  const totalEr = Number((erSoc + erHea + erUne + erUnion).toFixed(2));
+
+  return {
+    socialInsRateEmployee: empSoc,
+    healthInsRateEmployee: empHea,
+    unemploymentInsRateEmployee: empUne,
+    totalEmpRate: totalEmp,
+    socialInsRateEmployer: erSoc,
+    healthInsRateEmployer: erHea,
+    unemploymentInsRateEmployer: erUne,
+    tradeUnionRateEmployer: erUnion,
+    totalErRate: totalEr,
+    totalRate: Number((totalEmp + totalEr).toFixed(2)),
+    periodName: 'Chuẩn quy định hệ thống',
+    note: ''
+  };
+};
 
 /**
  * Tính số ngày công chuẩn trong tháng dựa vào lịch thực tế và chính sách ngày nghỉ cố định
@@ -643,28 +740,52 @@ export const calculateEmployeePayroll = (
   let totalInsuranceEmployer = 0;
   
   if (insurance && insurance.isParticipating) {
-    insuranceSalary = insurance.insuranceSalary || employee.baseSalary;
-    
-    const socRateEmp = (insurance.customSocialRate ?? settings.socialInsRateEmployee) / 100;
-    const heaRateEmp = (insurance.customHealthRate ?? settings.healthInsRateEmployee) / 100;
-    const uneRateEmp = (insurance.customUnempRate ?? settings.unemploymentInsRateEmployee) / 100;
-    
-    socialInsuranceEmp = Math.round(insuranceSalary * socRateEmp);
-    healthInsuranceEmp = Math.round(insuranceSalary * heaRateEmp);
-    unempInsuranceEmp = Math.round(insuranceSalary * uneRateEmp);
-    totalInsuranceEmp = socialInsuranceEmp + healthInsuranceEmp + unempInsuranceEmp;
-    
-    // Phía người sử dụng lao động
-    const socRateEr = settings.socialInsRateEmployer / 100;
-    const heaRateEr = settings.healthInsRateEmployer / 100;
-    const uneRateEr = settings.unemploymentInsRateEmployer / 100;
-    const unionRateEr = settings.tradeUnionRateEmployer / 100;
-    
-    socialInsuranceEmployer = Math.round(insuranceSalary * socRateEr);
-    healthInsuranceEmployer = Math.round(insuranceSalary * heaRateEr);
-    unempInsuranceEmployer = Math.round(insuranceSalary * uneRateEr);
-    tradeUnionEmployer = Math.round(insuranceSalary * unionRateEr);
-    totalInsuranceEmployer = socialInsuranceEmployer + healthInsuranceEmployer + unempInsuranceEmployer + tradeUnionEmployer;
+    const curMonthKey = `${parsedYear}-${String(parsedMonth).padStart(2, '0')}`;
+    let participatesThisMonth = true;
+
+    if (insurance.startDate) {
+      const startMonthKey = insurance.startDate.slice(0, 7);
+      if (curMonthKey < startMonthKey) {
+        participatesThisMonth = false;
+      }
+    }
+
+    if (participatesThisMonth) {
+      let effectiveSalary = insurance.insuranceSalary || employee.baseSalary;
+      if (insurance.history && insurance.history.length > 0) {
+        const matched = insurance.history.find(h => {
+          return curMonthKey >= h.fromMonth && (!h.toMonth || curMonthKey <= h.toMonth);
+        });
+        if (matched) {
+          effectiveSalary = matched.salary;
+        }
+      }
+      insuranceSalary = effectiveSalary;
+
+      // Lấy tỷ lệ đóng BHXH có hiệu lực theo giai đoạn thiết lập cho tháng/năm này
+      const monthRates = getInsuranceRatesForMonth(settings, parsedYear, parsedMonth);
+      
+      const socRateEmp = (insurance.customSocialRate !== undefined ? insurance.customSocialRate : monthRates.socialInsRateEmployee) / 100;
+      const heaRateEmp = (insurance.customHealthRate !== undefined ? insurance.customHealthRate : monthRates.healthInsRateEmployee) / 100;
+      const uneRateEmp = (insurance.customUnempRate !== undefined ? insurance.customUnempRate : monthRates.unemploymentInsRateEmployee) / 100;
+      
+      socialInsuranceEmp = Math.round(insuranceSalary * socRateEmp);
+      healthInsuranceEmp = Math.round(insuranceSalary * heaRateEmp);
+      unempInsuranceEmp = Math.round(insuranceSalary * uneRateEmp);
+      totalInsuranceEmp = socialInsuranceEmp + healthInsuranceEmp + unempInsuranceEmp;
+      
+      // Phía người sử dụng lao động
+      const socRateEr = monthRates.socialInsRateEmployer / 100;
+      const heaRateEr = monthRates.healthInsRateEmployer / 100;
+      const uneRateEr = monthRates.unemploymentInsRateEmployer / 100;
+      const unionRateEr = monthRates.tradeUnionRateEmployer / 100;
+      
+      socialInsuranceEmployer = Math.round(insuranceSalary * socRateEr);
+      healthInsuranceEmployer = Math.round(insuranceSalary * heaRateEr);
+      unempInsuranceEmployer = Math.round(insuranceSalary * uneRateEr);
+      tradeUnionEmployer = Math.round(insuranceSalary * unionRateEr);
+      totalInsuranceEmployer = socialInsuranceEmployer + healthInsuranceEmployer + unempInsuranceEmployer + tradeUnionEmployer;
+    }
   }
   
   // 8. Giảm trừ gia cảnh & Thuế TNCN (Bản thân 15.500.000, NPT 6.200.000)

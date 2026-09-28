@@ -73,6 +73,24 @@ export const initialSettings: SystemSettings = {
   unemploymentInsRateEmployer: 1.0,
   tradeUnionRateEmployer: 2.0,
   
+  // Giai đoạn áp dụng tỷ lệ trích đóng BHXH (Từ tháng... đến tháng...)
+  insuranceRatePeriods: [
+    {
+      id: 'irp-default-1',
+      fromMonth: '2020-01',
+      toMonth: '',
+      name: 'Luật BHXH & BHYT hiện hành',
+      socialInsRateEmployee: 8.0,
+      healthInsRateEmployee: 1.5,
+      unemploymentInsRateEmployee: 1.0,
+      socialInsRateEmployer: 17.5,
+      healthInsRateEmployer: 3.0,
+      unemploymentInsRateEmployer: 1.0,
+      tradeUnionRateEmployer: 2.0,
+      note: 'Chuẩn quy định: NLĐ 10.5% (BHXH 8%, BHYT 1.5%, BHTN 1%) - DN 23.5% (BHXH 17.5%, BHYT 3%, BHTN 1%, KPCĐ 2%)'
+    }
+  ],
+  
   standardMealPerDay: 35000,
   monthlyMealFlatRate: 1200000, // Chuyển từ 720.000 thành 1.200.000 VND / tháng
   

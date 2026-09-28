@@ -80,6 +80,9 @@ export interface SystemSettings {
   tradeUnionRateEmployer: number; // 2% (Kinh phí công đoàn)
   // Tổng = 23.5%
   
+  // Danh sách các giai đoạn áp dụng tỷ lệ đóng BHXH theo thời gian (Từ tháng... đến tháng...)
+  insuranceRatePeriods?: InsuranceRatePeriod[];
+  
   // Định mức tiền ăn ca/ăn trưa
   standardMealPerDay: number; // ví dụ 35,000 VND / ngày hoặc bữa
   monthlyMealFlatRate: number; // ví dụ 1,200,000 VND / tháng (mức tối đa miễn thuế TNCN)
@@ -207,6 +210,26 @@ export interface Dependent {
   endDate?: string; // Tháng kết thúc tính giảm trừ (YYYY-MM)
   deductionAmount: number; // 4,400,000 đ
   note?: string;
+}
+
+export interface InsuranceRatePeriod {
+  id: string;
+  fromMonth: string; // YYYY-MM (Bắt đầu áp dụng)
+  toMonth?: string; // YYYY-MM (Kết thúc áp dụng, để trống nếu đang áp dụng)
+  name?: string; // Tên giai đoạn / Quy định / Căn cứ
+  
+  // Tỷ lệ trích BHXH Người lao động (%)
+  socialInsRateEmployee: number; // e.g. 8%
+  healthInsRateEmployee: number; // e.g. 1.5%
+  unemploymentInsRateEmployee: number; // e.g. 1%
+  
+  // Tỷ lệ trích BHXH Người sử dụng lao động (%)
+  socialInsRateEmployer: number; // e.g. 17.5%
+  healthInsRateEmployer: number; // e.g. 3%
+  unemploymentInsRateEmployer: number; // e.g. 1%
+  tradeUnionRateEmployer: number; // e.g. 2% (Kinh phí công đoàn)
+  
+  note?: string; // Ghi chú, Căn cứ pháp lý (Luật BHXH, Nghị định...)
 }
 
 export interface InsuranceSalaryHistory {

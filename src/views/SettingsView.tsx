@@ -10,16 +10,19 @@ import {
   Plus, 
   Trash2, 
   Save, 
-  CheckCircle2,
-  Utensils,
-  CalendarDays,
-  Sparkles,
-  Sliders,
-  Pencil,
-  Check,
-  X
+  CheckCircle2, 
+  Utensils, 
+  CalendarDays, 
+  Sparkles, 
+  Sliders, 
+  Pencil, 
+  Check, 
+  X,
+  CalendarRange,
+  History,
+  Info
 } from 'lucide-react';
-import { SystemSettings, Department, Position, Holiday, SalaryCalculationBasis, FixedDaysOffPolicy, TaxBracket, TaxExemptionRules } from '../types';
+import { SystemSettings, Department, Position, Holiday, SalaryCalculationBasis, FixedDaysOffPolicy, TaxBracket, TaxExemptionRules, InsuranceRatePeriod } from '../types';
 import { formatVND, calculateStandardDaysFromPolicy, DEFAULT_TAX_BRACKETS, DEFAULT_TAX_EXEMPTION_RULES } from '../utils/payrollCalculator';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { EditTaxBracketsModal } from '../components/EditTaxBracketsModal';
@@ -43,6 +46,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
   const [newHol, setNewHol] = useState({ date: '2026-09-02', name: '', isPaid: true });
   const [isTaxBracketsModalOpen, setIsTaxBracketsModalOpen] = useState(false);
   const [isTaxExemptionModalOpen, setIsTaxExemptionModalOpen] = useState(false);
+
+  // Modal quản lý giai đoạn áp dụng tỷ lệ đóng BHXH theo thời gian
+  const [isInsurancePeriodModalOpen, setIsInsurancePeriodModalOpen] = useState(false);
+  const [periodForm, setPeriodForm] = useState<{
+    id: string | null;
+    fromMonth: string;
+    toMonth: string;
+    isOngoing: boolean;
+    name: string;
+    socialInsRateEmployee: number;
+    healthInsRateEmployee: number;
+    unemploymentInsRateEmployee: number;
+    socialInsRateEmployer: number;
+    healthInsRateEmployer: number;
+    unemploymentInsRateEmployer: number;
+    tradeUnionRateEmployer: number;
+    note: string;
+  }>({
+    id: null,
+    fromMonth: `${settings.currentYear || 2026}-01`,
+    toMonth: '',
+    isOngoing: true,
+    name: 'Giai đoạn chuẩn quy định',
+    socialInsRateEmployee: 8.0,
+    healthInsRateEmployee: 1.5,
+    unemploymentInsRateEmployee: 1.0,
+    socialInsRateEmployer: 17.5,
+    healthInsRateEmployer: 3.0,
+    unemploymentInsRateEmployer: 1.0,
+    tradeUnionRateEmployer: 2.0,
+    note: ''
+  });
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +144,116 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
 
   const handleDeleteHoliday = (id: string) => {
     setFormData(prev => ({ ...prev, holidays: prev.holidays.filter(h => h.id !== id) }));
+  };
+
+  // Handlers: Quản lý giai đoạn áp dụng tỷ lệ đóng BHXH theo thời gian
+  const handleOpenAddPeriod = () => {
+    setPeriodForm({
+      id: null,
+      fromMonth: `${formData.currentYear || 2026}-01`,
+      toMonth: '',
+      isOngoing: true,
+      name: `Quy định mới áp dụng từ năm ${formData.currentYear || 2026}`,
+      socialInsRateEmployee: formData.socialInsRateEmployee ?? 8.0,
+      healthInsRateEmployee: formData.healthInsRateEmployee ?? 1.5,
+      unemploymentInsRateEmployee: formData.unemploymentInsRateEmployee ?? 1.0,
+      socialInsRateEmployer: formData.socialInsRateEmployer ?? 17.5,
+      healthInsRateEmployer: formData.healthInsRateEmployer ?? 3.0,
+      unemploymentInsRateEmployer: formData.unemploymentInsRateEmployer ?? 1.0,
+      tradeUnionRateEmployer: formData.tradeUnionRateEmployer ?? 2.0,
+      note: ''
+    });
+    setIsInsurancePeriodModalOpen(true);
+  };
+
+  const handleOpenEditPeriod = (period: InsuranceRatePeriod) => {
+    setPeriodForm({
+      id: period.id,
+      fromMonth: period.fromMonth,
+      toMonth: period.toMonth || '',
+      isOngoing: !period.toMonth,
+      name: period.name || '',
+      socialInsRateEmployee: period.socialInsRateEmployee,
+      healthInsRateEmployee: period.healthInsRateEmployee,
+      unemploymentInsRateEmployee: period.unemploymentInsRateEmployee,
+      socialInsRateEmployer: period.socialInsRateEmployer,
+      healthInsRateEmployer: period.healthInsRateEmployer,
+      unemploymentInsRateEmployer: period.unemploymentInsRateEmployer,
+      tradeUnionRateEmployer: period.tradeUnionRateEmployer,
+      note: period.note || ''
+    });
+    setIsInsurancePeriodModalOpen(true);
+  };
+
+  const handleDeletePeriod = (id: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa giai đoạn áp dụng tỷ lệ đóng BHXH này?')) return;
+    setFormData(prev => ({
+      ...prev,
+      insuranceRatePeriods: (prev.insuranceRatePeriods || []).filter(p => p.id !== id)
+    }));
+  };
+
+  const handleSavePeriod = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!periodForm.fromMonth) {
+      alert('Vui lòng chọn tháng bắt đầu áp dụng');
+      return;
+    }
+    const toMonthVal = periodForm.isOngoing ? '' : periodForm.toMonth;
+    if (toMonthVal && toMonthVal < periodForm.fromMonth) {
+      alert('Tháng kết thúc phải lớn hơn hoặc bằng tháng bắt đầu áp dụng');
+      return;
+    }
+
+    const currentList = [...(formData.insuranceRatePeriods || [])];
+    let updatedList: InsuranceRatePeriod[];
+
+    if (periodForm.id) {
+      updatedList = currentList.map(p => 
+        p.id === periodForm.id
+          ? {
+              ...p,
+              fromMonth: periodForm.fromMonth,
+              toMonth: toMonthVal,
+              name: periodForm.name.trim() || `Quy định từ ${periodForm.fromMonth}`,
+              socialInsRateEmployee: Number(periodForm.socialInsRateEmployee) || 0,
+              healthInsRateEmployee: Number(periodForm.healthInsRateEmployee) || 0,
+              unemploymentInsRateEmployee: Number(periodForm.unemploymentInsRateEmployee) || 0,
+              socialInsRateEmployer: Number(periodForm.socialInsRateEmployer) || 0,
+              healthInsRateEmployer: Number(periodForm.healthInsRateEmployer) || 0,
+              unemploymentInsRateEmployer: Number(periodForm.unemploymentInsRateEmployer) || 0,
+              tradeUnionRateEmployer: Number(periodForm.tradeUnionRateEmployer) || 0,
+              note: periodForm.note.trim()
+            }
+          : p
+      );
+    } else {
+      const newPeriod: InsuranceRatePeriod = {
+        id: `irp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        fromMonth: periodForm.fromMonth,
+        toMonth: toMonthVal,
+        name: periodForm.name.trim() || `Quy định từ ${periodForm.fromMonth}`,
+        socialInsRateEmployee: Number(periodForm.socialInsRateEmployee) || 0,
+        healthInsRateEmployee: Number(periodForm.healthInsRateEmployee) || 0,
+        unemploymentInsRateEmployee: Number(periodForm.unemploymentInsRateEmployee) || 0,
+        socialInsRateEmployer: Number(periodForm.socialInsRateEmployer) || 0,
+        healthInsRateEmployer: Number(periodForm.healthInsRateEmployer) || 0,
+        unemploymentInsRateEmployer: Number(periodForm.unemploymentInsRateEmployer) || 0,
+        tradeUnionRateEmployer: Number(periodForm.tradeUnionRateEmployer) || 0,
+        note: periodForm.note.trim()
+      };
+      updatedList = [...currentList, newPeriod];
+    }
+
+    // Sắp xếp theo fromMonth giảm dần (giai đoạn mới nhất lên trên)
+    updatedList.sort((a, b) => (b.fromMonth || '').localeCompare(a.fromMonth || ''));
+
+    setFormData(prev => ({
+      ...prev,
+      insuranceRatePeriods: updatedList
+    }));
+
+    setIsInsurancePeriodModalOpen(false);
   };
 
   // Editing states for departments, positions, holidays
@@ -1259,6 +1404,137 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 Cập nhật tự động vào Bảng lương & Báo cáo BHXH khi Lưu Cài Đặt
               </span>
             </div>
+
+            {/* Giai đoạn áp dụng tỷ lệ đóng BHXH theo từng thời điểm (Từ tháng... đến tháng...) */}
+            <div className="p-4 bg-purple-50/50 rounded-xl border border-purple-200/80 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-purple-200">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CalendarRange className="w-4 h-4 text-purple-700" />
+                    <span className="font-bold text-slate-900 text-xs">
+                      Cấu Hình Tỷ Lệ Đóng BHXH Theo Từng Thời Điểm (Từ Tháng Đến Tháng)
+                    </span>
+                    <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full font-bold text-[10px] border border-purple-300">
+                      {(formData.insuranceRatePeriods?.length || 0)} giai đoạn
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Khi quy định pháp luật hoặc tỷ lệ đóng thay đổi theo từng thời kỳ (ví dụ chính sách hỗ trợ giảm BHTN, điều chỉnh Luật BHXH mới...), hệ thống tự động áp dụng đúng tỷ lệ của từng tháng khi tính <strong>Bảng lương</strong> và <strong>Báo cáo BHXH cả năm</strong>.
+                  </p>
+                </div>
+
+                {canEditSettings && (
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPeriod}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Thêm Giai Đoạn Mới</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Table of periods */}
+              <div className="overflow-x-auto bg-white rounded-lg border border-purple-200 shadow-2xs">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-purple-100/70 text-purple-950 font-bold border-b border-purple-200 text-[11px]">
+                    <tr>
+                      <th className="p-2.5">Tên Giai Đoạn / Căn Cứ</th>
+                      <th className="p-2.5 text-center min-w-[150px]">Thời Gian Áp Dụng</th>
+                      <th className="p-2.5 text-center min-w-[120px] bg-red-50 text-red-950">NLĐ Đóng (%)</th>
+                      <th className="p-2.5 text-center min-w-[140px] bg-blue-50 text-blue-950">DN Đóng (%)</th>
+                      <th className="p-2.5 text-center min-w-[100px] bg-purple-200/80 font-black">Tổng Nộp (%)</th>
+                      <th className="p-2.5">Ghi Chú</th>
+                      <th className="p-2.5 text-center w-24">Thao Tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-purple-100 text-[11px]">
+                    {(!formData.insuranceRatePeriods || formData.insuranceRatePeriods.length === 0) ? (
+                      <tr>
+                        <td colSpan={7} className="p-6 text-center text-slate-500 italic">
+                          Chưa thiết lập giai đoạn riêng lẻ. Hệ thống hiện đang áp dụng tỷ lệ chuẩn chung phía trên cho toàn bộ các tháng.
+                        </td>
+                      </tr>
+                    ) : (
+                      formData.insuranceRatePeriods.map((period) => {
+                        const empSum = Number(((period.socialInsRateEmployee || 0) + (period.healthInsRateEmployee || 0) + (period.unemploymentInsRateEmployee || 0)).toFixed(2));
+                        const erSum = Number(((period.socialInsRateEmployer || 0) + (period.healthInsRateEmployer || 0) + (period.unemploymentInsRateEmployer || 0) + (period.tradeUnionRateEmployer || 0)).toFixed(2));
+                        const totalSum = Number((empSum + erSum).toFixed(2));
+                        const currentMonthKey = `${formData.currentYear}-${String(formData.currentMonth).padStart(2, '0')}`;
+                        const isCurrentActive = (!period.toMonth || currentMonthKey <= period.toMonth) && (currentMonthKey >= period.fromMonth);
+
+                        return (
+                          <tr key={period.id} className="hover:bg-purple-50/40 transition-colors">
+                            <td className="p-2.5 font-bold text-slate-900">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{period.name || 'Giai đoạn áp dụng'}</span>
+                                {isCurrentActive && (
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    Tháng hiện tại
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2.5 font-mono text-center">
+                              <span className="font-bold text-purple-900">{period.fromMonth}</span>
+                              <span className="text-slate-400 mx-1">→</span>
+                              {period.toMonth ? (
+                                <span className="font-bold text-purple-900">{period.toMonth}</span>
+                              ) : (
+                                <span className="inline-block px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded font-semibold text-[10px]">
+                                  Đang áp dụng
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-center bg-red-50/30">
+                              <div className="font-black text-red-700 font-mono text-xs">{empSum}%</div>
+                              <div className="text-[10px] text-slate-500">
+                                BHXH {period.socialInsRateEmployee}% • BHYT {period.healthInsRateEmployee}% • BHTN {period.unemploymentInsRateEmployee}%
+                              </div>
+                            </td>
+                            <td className="p-2.5 text-center bg-blue-50/30">
+                              <div className="font-black text-blue-700 font-mono text-xs">{erSum}%</div>
+                              <div className="text-[10px] text-slate-500">
+                                BHXH {period.socialInsRateEmployer}% • BHYT {period.healthInsRateEmployer}% • BHTN {period.unemploymentInsRateEmployer}% • KPCĐ {period.tradeUnionRateEmployer}%
+                              </div>
+                            </td>
+                            <td className="p-2.5 text-center font-black font-mono text-purple-950 text-xs bg-purple-50/50">
+                              {totalSum}%
+                            </td>
+                            <td className="p-2.5 text-slate-600 max-w-xs truncate" title={period.note}>
+                              {period.note || '—'}
+                            </td>
+                            <td className="p-2.5 text-center">
+                              {canEditSettings && (
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditPeriod(period)}
+                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                                    title="Chỉnh sửa giai đoạn"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeletePeriod(period.id)}
+                                    className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                    title="Xóa giai đoạn"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1757,6 +2033,322 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
           onUpdateSettings(updated);
         }}
       />
+
+      {/* Modal Thêm Mới / Chỉnh Sửa Giai Đoạn Đóng BHXH Theo Thời Gian */}
+      {isInsurancePeriodModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
+                  <CalendarRange className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {periodForm.id ? 'Chỉnh Sửa Giai Đoạn Áp Dụng Tỷ Lệ Đóng BHXH' : 'Thêm Mới Giai Đoạn Áp Dụng Tỷ Lệ Đóng BHXH'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Căn cứ pháp lý theo từng thời điểm (từ tháng nào đến tháng nào)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInsurancePeriodModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePeriod} className="mt-5 space-y-4 text-xs">
+              {/* Presets */}
+              <div className="flex items-center gap-2 flex-wrap pb-3 border-b border-slate-100">
+                <span className="font-semibold text-slate-600 text-[11px]">Mẫu chọn nhanh:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeriodForm(prev => ({
+                      ...prev,
+                      name: 'Luật BHXH chuẩn (NLĐ 10.5% - DN 23.5%)',
+                      socialInsRateEmployee: 8.0,
+                      healthInsRateEmployee: 1.5,
+                      unemploymentInsRateEmployee: 1.0,
+                      socialInsRateEmployer: 17.5,
+                      healthInsRateEmployer: 3.0,
+                      unemploymentInsRateEmployer: 1.0,
+                      tradeUnionRateEmployer: 2.0
+                    }));
+                  }}
+                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold border border-slate-300 transition-colors cursor-pointer"
+                >
+                  Chuẩn Luật (10.5% / 23.5%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeriodForm(prev => ({
+                      ...prev,
+                      name: 'Hỗ trợ NQ 116 (giảm 1% BHTN DN)',
+                      socialInsRateEmployee: 8.0,
+                      healthInsRateEmployee: 1.5,
+                      unemploymentInsRateEmployee: 1.0,
+                      socialInsRateEmployer: 17.5,
+                      healthInsRateEmployer: 3.0,
+                      unemploymentInsRateEmployer: 0,
+                      tradeUnionRateEmployer: 2.0
+                    }));
+                  }}
+                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg font-semibold border border-amber-200 transition-colors cursor-pointer"
+                >
+                  Giảm 1% BHTN DN (0%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeriodForm(prev => ({
+                      ...prev,
+                      name: 'Miễn BHTN cả NLĐ và DN',
+                      socialInsRateEmployee: 8.0,
+                      healthInsRateEmployee: 1.5,
+                      unemploymentInsRateEmployee: 0,
+                      socialInsRateEmployer: 17.5,
+                      healthInsRateEmployer: 3.0,
+                      unemploymentInsRateEmployer: 0,
+                      tradeUnionRateEmployer: 2.0
+                    }));
+                  }}
+                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-lg font-semibold border border-rose-200 transition-colors cursor-pointer"
+                >
+                  Miễn BHTN cả 2 bên (0%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeriodForm(prev => ({
+                      ...prev,
+                      tradeUnionRateEmployer: 0
+                    }));
+                  }}
+                  className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg font-semibold border border-blue-200 transition-colors cursor-pointer"
+                >
+                  Chưa có KPCĐ (0%)
+                </button>
+              </div>
+
+              {/* Tên giai đoạn */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tên Giai Đoạn / Căn Cứ Pháp Lý *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Luật BHXH 2024 có hiệu lực, Nghị quyết 116/NQ-CP..."
+                  value={periodForm.name}
+                  onChange={e => setPeriodForm({ ...periodForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Thời gian áp dụng: Từ tháng -> Đến tháng */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-purple-50/40 p-3.5 rounded-xl border border-purple-200">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-purple-600" />
+                    <span>Từ Tháng (Bắt đầu áp dụng) *</span>
+                  </label>
+                  <input
+                    type="month"
+                    required
+                    value={periodForm.fromMonth}
+                    onChange={e => setPeriodForm({ ...periodForm, fromMonth: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg font-mono text-xs bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Định dạng YYYY-MM (Ví dụ: 2026-01)</span>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Đến Tháng (Kết thúc)
+                  </label>
+                  <input
+                    type="month"
+                    disabled={periodForm.isOngoing}
+                    value={periodForm.toMonth}
+                    onChange={e => setPeriodForm({ ...periodForm, toMonth: e.target.value })}
+                    className={`w-full px-3 py-1.5 border border-slate-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none ${
+                      periodForm.isOngoing ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
+                    }`}
+                  />
+                  <label className="flex items-center gap-1.5 text-[11px] text-slate-700 mt-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={periodForm.isOngoing}
+                      onChange={e => setPeriodForm({ ...periodForm, isOngoing: e.target.checked })}
+                      className="rounded text-purple-600 cursor-pointer"
+                    />
+                    <span className="font-semibold text-purple-900">Đang áp dụng đến nay (chưa có hạn kết thúc)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Tỷ lệ trích đóng NLĐ */}
+              <div className="p-3.5 bg-orange-50/50 rounded-xl border border-orange-200 space-y-2.5">
+                <div className="flex items-center justify-between pb-1.5 border-b border-orange-200">
+                  <span className="font-bold text-slate-900 text-xs">1. Tỷ Lệ Trích Đóng Người Lao Động (NLĐ)</span>
+                  <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-lg font-mono font-black text-xs">
+                    Tổng NLĐ: {((periodForm.socialInsRateEmployee || 0) + (periodForm.healthInsRateEmployee || 0) + (periodForm.unemploymentInsRateEmployee || 0)).toFixed(1).replace(/\.0$/, '')}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">BHXH NLĐ (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.socialInsRateEmployee}
+                      onChange={e => setPeriodForm({ ...periodForm, socialInsRateEmployee: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">BHYT NLĐ (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.healthInsRateEmployee}
+                      onChange={e => setPeriodForm({ ...periodForm, healthInsRateEmployee: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">BHTN NLĐ (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.unemploymentInsRateEmployee}
+                      onChange={e => setPeriodForm({ ...periodForm, unemploymentInsRateEmployee: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tỷ lệ trích đóng DN */}
+              <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200 space-y-2.5">
+                <div className="flex items-center justify-between pb-1.5 border-b border-blue-200">
+                  <span className="font-bold text-slate-900 text-xs">2. Tỷ Lệ Trích Đóng Doanh Nghiệp (NSDLĐ)</span>
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-lg font-mono font-black text-xs">
+                    Tổng DN: {((periodForm.socialInsRateEmployer || 0) + (periodForm.healthInsRateEmployer || 0) + (periodForm.unemploymentInsRateEmployer || 0) + (periodForm.tradeUnionRateEmployer || 0)).toFixed(1).replace(/\.0$/, '')}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">BHXH DN (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.socialInsRateEmployer}
+                      onChange={e => setPeriodForm({ ...periodForm, socialInsRateEmployer: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">BHYT DN (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.healthInsRateEmployer}
+                      onChange={e => setPeriodForm({ ...periodForm, healthInsRateEmployer: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">BHTN DN (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.unemploymentInsRateEmployer}
+                      onChange={e => setPeriodForm({ ...periodForm, unemploymentInsRateEmployer: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">KPCĐ DN (%)</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={100}
+                      value={periodForm.tradeUnionRateEmployer}
+                      onChange={e => setPeriodForm({ ...periodForm, tradeUnionRateEmployer: Math.max(0, Number(e.target.value)) })}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ghi chú */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Ghi Chú / Số Hiệu Văn Bản Hướng Dẫn
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Theo Nghị định số... hoặc Quyết định của HĐQT..."
+                  value={periodForm.note}
+                  onChange={e => setPeriodForm({ ...periodForm, note: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white"
+                />
+              </div>
+
+              {/* Total Callout */}
+              <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 flex items-center justify-between text-xs">
+                <span className="font-bold text-purple-900">
+                  Tổng Nộp Toàn Đơn Vị Trong Giai Đoạn Này:
+                </span>
+                <span className="font-mono font-black text-purple-950 text-sm">
+                  {((periodForm.socialInsRateEmployee || 0) + (periodForm.healthInsRateEmployee || 0) + (periodForm.unemploymentInsRateEmployee || 0) + (periodForm.socialInsRateEmployer || 0) + (periodForm.healthInsRateEmployer || 0) + (periodForm.unemploymentInsRateEmployer || 0) + (periodForm.tradeUnionRateEmployer || 0)).toFixed(1).replace(/\.0$/, '')}%
+                </span>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsInsurancePeriodModalOpen(false)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{periodForm.id ? 'Cập Nhật Giai Đoạn' : 'Lưu Giai Đoạn Mới'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

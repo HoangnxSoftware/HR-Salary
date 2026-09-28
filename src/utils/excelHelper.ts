@@ -705,8 +705,22 @@ export const exportAnnualInsuranceToExcel = (
     avgMonthlyContribution: number;
   }[],
   year: number,
-  companyName: string
+  companyName: string,
+  settings?: SystemSettings
 ) => {
+  const empSoc = settings?.socialInsRateEmployee ?? 8;
+  const empHea = settings?.healthInsRateEmployee ?? 1.5;
+  const empUne = settings?.unemploymentInsRateEmployee ?? 1;
+  const empTot = Number((empSoc + empHea + empUne).toFixed(1));
+
+  const erSoc = settings?.socialInsRateEmployer ?? 17.5;
+  const erHea = settings?.healthInsRateEmployer ?? 3;
+  const erUne = settings?.unemploymentInsRateEmployer ?? 1;
+  const erUnion = settings?.tradeUnionRateEmployer ?? 2;
+  const erTot = Number((erSoc + erHea + erUne + erUnion).toFixed(1));
+
+  const grandTotRate = Number((empTot + erTot).toFixed(1));
+
   // Sheet 1: Tổng nộp từng tháng trong 12 tháng
   const sheet1Rows = annualData.map((row, idx) => ({
     'STT': idx + 1,
@@ -731,7 +745,7 @@ export const exportAnnualInsuranceToExcel = (
     'Tổng Quỹ Lương Năm': row.totalInsuranceSalaryYear,
     'Tổng NLĐ Đóng Cả Năm': row.totalEmpYear,
     'Tổng DN Đóng Cả Năm': row.totalErYear,
-    'Tổng Nộp Cả Năm (34%)': row.totalContributionYear,
+    [`Tổng Nộp Cả Năm (${grandTotRate}%)`]: row.totalContributionYear,
     'Bình Quân / Tháng': Math.round(row.avgMonthlyContribution)
   }));
 
@@ -744,16 +758,16 @@ export const exportAnnualInsuranceToExcel = (
     'Phòng Ban': row.departmentName,
     'Số Tháng Tham Gia': row.activeMonthsCount,
     'Tổng Quỹ Lương Năm': row.totalInsuranceSalaryYear,
-    'BHXH NLĐ (8%)': row.totalSocEmpYear,
-    'BHYT NLĐ (1.5%)': row.totalMedEmpYear,
-    'BHTN NLĐ (1%)': row.totalUnempEmpYear,
-    'TỔNG TRÍCH NLĐ (10.5%)': row.totalEmpYear,
-    'BHXH DN (17.5%)': row.totalSocErYear,
-    'BHYT DN (3%)': row.totalMedErYear,
-    'BHTN DN (1%)': row.totalUnempErYear,
-    'KPCĐ DN (2%)': row.totalUnionErYear,
-    'TỔNG ĐÓNG DN (23.5%)': row.totalErYear,
-    'TỔNG CỘNG NỘP CƠ QUAN BHXH (34%)': row.totalContributionYear
+    [`BHXH NLĐ (${empSoc}%)`]: row.totalSocEmpYear,
+    [`BHYT NLĐ (${empHea}%)`]: row.totalMedEmpYear,
+    [`BHTN NLĐ (${empUne}%)`]: row.totalUnempEmpYear,
+    [`TỔNG TRÍCH NLĐ (${empTot}%)`]: row.totalEmpYear,
+    [`BHXH DN (${erSoc}%)`]: row.totalSocErYear,
+    [`BHYT DN (${erHea}%)`]: row.totalMedErYear,
+    [`BHTN DN (${erUne}%)`]: row.totalUnempErYear,
+    [`KPCĐ DN (${erUnion}%)`]: row.totalUnionErYear,
+    [`TỔNG ĐÓNG DN (${erTot}%)`]: row.totalErYear,
+    [`TỔNG CỘNG NỘP CƠ QUAN BHXH (${grandTotRate}%)`]: row.totalContributionYear
   }));
 
   const wb = XLSX.utils.book_new();

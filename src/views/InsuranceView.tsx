@@ -25,10 +25,11 @@ import {
   DollarSign,
   Users,
   Building2,
-  ChevronRight
+  ChevronRight,
+  CalendarRange
 } from 'lucide-react';
-import { InsuranceRecord, Employee, SystemSettings, InsuranceSalaryHistory } from '../types';
-import { formatVND, isEmployeeActiveInMonth } from '../utils/payrollCalculator';
+import { InsuranceRecord, Employee, SystemSettings, InsuranceSalaryHistory, InsuranceRatePeriod } from '../types';
+import { formatVND, isEmployeeActiveInMonth, getInsuranceRatesForMonth } from '../utils/payrollCalculator';
 import * as XLSX from 'xlsx';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { PrintInsuranceModal } from '../components/PrintInsuranceModal';
@@ -137,14 +138,6 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
       const posName = posMap.get(emp.positionId) || '';
       
       const isParticipating = ins ? ins.isParticipating : true;
-      const socRateEmp = (ins?.customSocialRate ?? settings.socialInsRateEmployee) / 100;
-      const heaRateEmp = (ins?.customHealthRate ?? settings.healthInsRateEmployee) / 100;
-      const uneRateEmp = (ins?.customUnempRate ?? settings.unemploymentInsRateEmployee) / 100;
-
-      const socRateEr = (settings.socialInsRateEmployer || 17.5) / 100;
-      const heaRateEr = (settings.healthInsRateEmployer || 3) / 100;
-      const uneRateEr = (settings.unemploymentInsRateEmployer || 1) / 100;
-      const unionRateEr = (settings.tradeUnionRateEmployer || 2) / 100;
 
       const monthlySalary: { [month: number]: number } = {};
       const monthlyEmpTotal: { [month: number]: number } = {};
@@ -192,15 +185,27 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
             }
           }
 
-          const mEmpSoc = Math.round(mSalary * socRateEmp);
-          const mEmpMed = Math.round(mSalary * heaRateEmp);
-          const mEmpUne = Math.round(mSalary * uneRateEmp);
+          // Lấy tỷ lệ trích đóng BHXH chuẩn có hiệu lực cho tháng m của năm được chọn (theo từng thời điểm)
+          const monthRates = getInsuranceRatesForMonth(settings, selectedYear, m);
+
+          const mSocEmpRate = (ins?.customSocialRate !== undefined ? ins.customSocialRate : monthRates.socialInsRateEmployee) / 100;
+          const mHeaEmpRate = (ins?.customHealthRate !== undefined ? ins.customHealthRate : monthRates.healthInsRateEmployee) / 100;
+          const mUneEmpRate = (ins?.customUnempRate !== undefined ? ins.customUnempRate : monthRates.unemploymentInsRateEmployee) / 100;
+
+          const mSocErRate = monthRates.socialInsRateEmployer / 100;
+          const mHeaErRate = monthRates.healthInsRateEmployer / 100;
+          const mUneErRate = monthRates.unemploymentInsRateEmployer / 100;
+          const mUnionErRate = monthRates.tradeUnionRateEmployer / 100;
+
+          const mEmpSoc = Math.round(mSalary * mSocEmpRate);
+          const mEmpMed = Math.round(mSalary * mHeaEmpRate);
+          const mEmpUne = Math.round(mSalary * mUneEmpRate);
           const mEmpTot = mEmpSoc + mEmpMed + mEmpUne;
 
-          const mErSoc = Math.round(mSalary * socRateEr);
-          const mErMed = Math.round(mSalary * heaRateEr);
-          const mErUne = Math.round(mSalary * uneRateEr);
-          const mErUni = Math.round(mSalary * unionRateEr);
+          const mErSoc = Math.round(mSalary * mSocErRate);
+          const mErMed = Math.round(mSalary * mHeaErRate);
+          const mErUne = Math.round(mSalary * mUneErRate);
+          const mErUni = Math.round(mSalary * mUnionErRate);
           const mErTot = mErSoc + mErMed + mErUne + mErUni;
 
           const mGrandTot = mEmpTot + mErTot;
@@ -285,6 +290,20 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
       return matchDep && matchSearch;
     });
   }, [annualInsuranceData, filterDepartment, searchTerm]);
+
+  // Các giai đoạn áp dụng tỷ lệ đóng có hiệu lực trong năm được chọn
+  const applicablePeriodsForYear = useMemo(() => {
+    if (!settings.insuranceRatePeriods || settings.insuranceRatePeriods.length === 0) {
+      return [];
+    }
+    const yearStart = `${selectedYear}-01`;
+    const yearEnd = `${selectedYear}-12`;
+    return settings.insuranceRatePeriods.filter(p => {
+      const from = p.fromMonth || '2000-01';
+      const to = p.toMonth || '2099-12';
+      return from <= yearEnd && to >= yearStart;
+    });
+  }, [settings.insuranceRatePeriods, selectedYear]);
 
   // Tỷ lệ chuẩn toàn hệ thống
   const empTotalRate = Number(((settings.socialInsRateEmployee || 0) + (settings.healthInsRateEmployee || 0) + (settings.unemploymentInsRateEmployee || 0)).toFixed(2));
@@ -541,7 +560,7 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
   };
 
   const handleExportAnnualExcel = () => {
-    exportAnnualInsuranceToExcel(filteredAnnualData, selectedYear, settings.companyName);
+    exportAnnualInsuranceToExcel(filteredAnnualData, selectedYear, settings.companyName, settings);
   };
 
   // Tính tổng số liệu cho báo cáo cả năm
@@ -1067,7 +1086,7 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
               <div className="text-xl font-black font-mono text-red-600 mt-1">
                 {formatVND(annualGrandEmpTotal)}
               </div>
-              <span className="text-slate-500 mt-0.5 block">BHXH 8% • BHYT 1.5% • BHTN 1%</span>
+              <span className="text-slate-500 mt-0.5 block">BHXH {settings.socialInsRateEmployee}% • BHYT {settings.healthInsRateEmployee}% • BHTN {settings.unemploymentInsRateEmployee}%</span>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -1078,9 +1097,38 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
               <div className="text-xl font-black font-mono text-blue-600 mt-1">
                 {formatVND(annualGrandErTotal)}
               </div>
-              <span className="text-slate-500 mt-0.5 block">BHXH 17.5% • BHYT 3% • BHTN 1% • KPCĐ 2%</span>
+              <span className="text-slate-500 mt-0.5 block">BHXH {settings.socialInsRateEmployer}% • BHYT {settings.healthInsRateEmployer}% • BHTN {settings.unemploymentInsRateEmployer}% • KPCĐ {settings.tradeUnionRateEmployer}%</span>
             </div>
           </div>
+
+          {/* Banner: Tỷ lệ áp dụng theo từng thời điểm trong năm */}
+          {applicablePeriodsForYear.length > 0 && (
+            <div className="p-3.5 bg-purple-50 rounded-2xl border border-purple-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="flex items-start md:items-center gap-2.5">
+                <div className="p-1.5 bg-purple-200 text-purple-800 rounded-lg shrink-0 mt-0.5 md:mt-0">
+                  <CalendarRange className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-purple-950 flex items-center gap-2 flex-wrap">
+                    <span>Căn Cứ Tỷ Lệ Trích Đóng Năm {selectedYear} ({applicablePeriodsForYear.length} giai đoạn):</span>
+                    {applicablePeriodsForYear.map(p => {
+                      const empSum = Number(((p.socialInsRateEmployee || 0) + (p.healthInsRateEmployee || 0) + (p.unemploymentInsRateEmployee || 0)).toFixed(1));
+                      const erSum = Number(((p.socialInsRateEmployer || 0) + (p.healthInsRateEmployer || 0) + (p.unemploymentInsRateEmployer || 0) + (p.tradeUnionRateEmployer || 0)).toFixed(1));
+                      const tot = Number((empSum + erSum).toFixed(1));
+                      return (
+                        <span key={p.id} className="px-2 py-0.5 bg-white border border-purple-300 rounded-lg text-purple-900 font-medium text-[11px] shadow-2xs">
+                          <strong>{p.name || 'Giai đoạn'}</strong>: {p.fromMonth} → {p.toMonth || 'nay'} (NLĐ: <strong>{empSum}%</strong>, DN: <strong>{erSum}%</strong>, Tổng: <strong>{tot}%</strong>)
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-purple-700 mt-0.5">
+                    Hệ thống đã tổng hợp số liệu trích nộp từng tháng chính xác tuyệt đối theo đúng tỷ lệ có hiệu lực của từng thời điểm.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Filter Bar & Mode Toggle */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
@@ -1311,18 +1359,18 @@ export const InsuranceView: React.FC<InsuranceViewProps> = ({
                         Doanh Nghiệp Đóng Cả Năm ({erTotalRate}%)
                       </th>
                       <th rowSpan={2} className="p-2 min-w-[100px] bg-purple-100 text-purple-950 font-black">
-                        Tổng Nộp Cả Năm (34%)
+                        Tổng Nộp Cả Năm ({overallTotalRate}%)
                       </th>
                     </tr>
                     <tr className="text-[10px] font-semibold bg-slate-100">
-                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-red-900">BHXH 8%</th>
-                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-red-900">BHYT 1.5%</th>
-                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-red-900">BHTN 1%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-red-900">BHXH {settings.socialInsRateEmployee}%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-red-900">BHYT {settings.healthInsRateEmployee}%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-red-900">BHTN {settings.unemploymentInsRateEmployee}%</th>
                       <th className="p-1 border-r border-slate-200 min-w-[60px] bg-red-100 font-bold text-red-950">Cộng NLĐ</th>
-                      <th className="p-1 border-r border-slate-200 min-w-[55px] text-blue-900">BHXH 17.5%</th>
-                      <th className="p-1 border-r border-slate-200 min-w-[55px] text-blue-900">BHYT 3%</th>
-                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-blue-900">BHTN 1%</th>
-                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-blue-900">KPCĐ 2%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[55px] text-blue-900">BHXH {settings.socialInsRateEmployer}%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[55px] text-blue-900">BHYT {settings.healthInsRateEmployer}%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-blue-900">BHTN {settings.unemploymentInsRateEmployer}%</th>
+                      <th className="p-1 border-r border-slate-200 min-w-[50px] text-blue-900">KPCĐ {settings.tradeUnionRateEmployer}%</th>
                       <th className="p-1 border-r border-slate-200 min-w-[60px] bg-blue-100 font-bold text-blue-950">Cộng DN</th>
                     </tr>
                   </thead>

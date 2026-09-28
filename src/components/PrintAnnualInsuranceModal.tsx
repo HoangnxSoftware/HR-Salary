@@ -98,6 +98,10 @@ export const PrintAnnualInsuranceModal: React.FC<PrintAnnualInsuranceModalProps>
     year: 'numeric'
   });
 
+  const empTotalRate = Number(((settings.socialInsRateEmployee || 8) + (settings.healthInsRateEmployee || 1.5) + (settings.unemploymentInsRateEmployee || 1)).toFixed(2));
+  const erTotalRate = Number(((settings.socialInsRateEmployer || 17.5) + (settings.healthInsRateEmployer || 3) + (settings.unemploymentInsRateEmployer || 1) + (settings.tradeUnionRateEmployer || 2)).toFixed(2));
+  const totalAllRate = Number((empTotalRate + erTotalRate).toFixed(2));
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-[98vw] max-h-[96vh] flex flex-col print:shadow-none print:border-none print:max-h-none print:max-w-none print:w-full print:rounded-none">
@@ -197,7 +201,7 @@ export const PrintAnnualInsuranceModal: React.FC<PrintAnnualInsuranceModalProps>
                 <div className="text-xs font-semibold text-slate-800">Báo cáo: Cả năm {year}</div>
                 <div className="text-[10px] text-slate-500 mt-0.5">Ngày in: {currentDateStr}</div>
                 <div className="text-[10px] text-purple-800 font-bold mt-0.5">
-                  Tỷ lệ chuẩn: NLĐ 10.5% • Doanh nghiệp 23.5% (Tổng 34%)
+                  Tỷ lệ chuẩn: NLĐ {empTotalRate}% • Doanh nghiệp {erTotalRate}% (Tổng {totalAllRate}%)
                 </div>
               </div>
             </div>
@@ -223,11 +227,11 @@ export const PrintAnnualInsuranceModal: React.FC<PrintAnnualInsuranceModalProps>
                 <strong className="text-slate-900 font-mono font-bold">{formatVND(grandSalaryAll)}</strong>
               </div>
               <div>
-                <span className="text-red-700 font-medium">Tổng NLĐ trích nộp (10.5%):</span>{' '}
+                <span className="text-red-700 font-medium">Tổng NLĐ trích nộp ({empTotalRate}%):</span>{' '}
                 <strong className="text-red-700 font-mono font-bold">{formatVND(grandEmpTotalAll)}</strong>
               </div>
               <div>
-                <span className="text-purple-900 font-bold">Tổng nộp cơ quan BHXH (34%):</span>{' '}
+                <span className="text-purple-900 font-bold">Tổng nộp cơ quan BHXH ({totalAllRate}%):</span>{' '}
                 <strong className="text-purple-900 font-mono font-black">{formatVND(grandTotalAll)}</strong>
               </div>
             </div>
@@ -373,26 +377,26 @@ export const PrintAnnualInsuranceModal: React.FC<PrintAnnualInsuranceModalProps>
                         Tổng Quỹ Lương Năm
                       </th>
                       <th colSpan={4} className="border border-slate-400 p-0.5 bg-red-50 text-red-950">
-                        Người Lao Động Đóng Cả Năm (10.5%)
+                        Người Lao Động Đóng Cả Năm ({empTotalRate}%)
                       </th>
                       <th colSpan={5} className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">
-                        Doanh Nghiệp Đóng Cả Năm (23.5%)
+                        Doanh Nghiệp Đóng Cả Năm ({erTotalRate}%)
                       </th>
                       <th rowSpan={2} className="border border-slate-400 p-1 min-w-[95px] bg-purple-100 text-purple-950 font-black">
-                        Tổng Nộp Cả Năm (34%)
+                        Tổng Nộp Cả Năm ({totalAllRate}%)
                       </th>
                     </tr>
                     <tr className="text-[9px]">
                       {/* Emp */}
-                      <th className="border border-slate-400 p-0.5 bg-red-50 text-red-950">BHXH 8%</th>
-                      <th className="border border-slate-400 p-0.5 bg-red-50 text-red-950">BHYT 1.5%</th>
-                      <th className="border border-slate-400 p-0.5 bg-red-50 text-red-950">BHTN 1%</th>
+                      <th className="border border-slate-400 p-0.5 bg-red-50 text-red-950">BHXH {settings.socialInsRateEmployee}%</th>
+                      <th className="border border-slate-400 p-0.5 bg-red-50 text-red-950">BHYT {settings.healthInsRateEmployee}%</th>
+                      <th className="border border-slate-400 p-0.5 bg-red-50 text-red-950">BHTN {settings.unemploymentInsRateEmployee}%</th>
                       <th className="border border-slate-400 p-0.5 bg-red-100 text-red-950 font-black">Cộng NLĐ</th>
                       {/* Er */}
-                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">BHXH 17.5%</th>
-                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">BHYT 3%</th>
-                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">BHTN 1%</th>
-                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">KPCĐ 2%</th>
+                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">BHXH {settings.socialInsRateEmployer}%</th>
+                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">BHYT {settings.healthInsRateEmployer}%</th>
+                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">BHTN {settings.unemploymentInsRateEmployer}%</th>
+                      <th className="border border-slate-400 p-0.5 bg-blue-50 text-blue-950">KPCĐ {settings.tradeUnionRateEmployer}%</th>
                       <th className="border border-slate-400 p-0.5 bg-blue-100 text-blue-950 font-black">Cộng DN</th>
                     </tr>
                   </thead>
